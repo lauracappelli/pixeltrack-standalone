@@ -5,12 +5,11 @@
 
 #include "SYCLCore/device_unique_ptr.h"
 #include "SYCLCore/host_unique_ptr.h"
-#include "SYCLCore/cudaCompat.h"
 
 class SiPixelClustersCUDA {
 public:
   SiPixelClustersCUDA() = default;
-  explicit SiPixelClustersCUDA(size_t maxClusters, sycl::queue *stream);
+  explicit SiPixelClustersCUDA(size_t maxClusters, sycl::queue stream);
   ~SiPixelClustersCUDA() = default;
 
   SiPixelClustersCUDA(const SiPixelClustersCUDA &) = delete;

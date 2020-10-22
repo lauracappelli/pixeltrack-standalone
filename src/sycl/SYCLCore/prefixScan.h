@@ -6,9 +6,6 @@
 
 #include <CL/sycl.hpp>
 
-#include "SYCLCore/cudaCompat.h"
-
-#ifdef DPCPP_COMPATIBILITY_TEMP
 template <typename T>
 SYCL_EXTERNAL inline __attribute__((always_inline)) void warpPrefixScan(
     T const* __restrict__ ci, T* __restrict__ co, uint32_t i, uint32_t mask, sycl::nd_item<3> item_ct1) {
@@ -16,7 +13,7 @@ SYCL_EXTERNAL inline __attribute__((always_inline)) void warpPrefixScan(
   auto x = ci[i];
   auto laneId = item_ct1.get_local_id(2) & 0x1f;
 #pragma unroll
-  for (int offset = 1; offset < 32; offset <<= 1) {
+  for (unsigned int offset = 1; offset < 32; offset <<= 1) {
     /*
     DPCT1023:77: The DPC++ sub-group does not support mask options for shuffle_up.
     */
@@ -26,10 +23,8 @@ SYCL_EXTERNAL inline __attribute__((always_inline)) void warpPrefixScan(
   }
   co[i] = x;
 }
-#endif
 
 //same as above may remove
-#ifdef DPCPP_COMPATIBILITY_TEMP
 template <typename T>
 SYCL_EXTERNAL inline __attribute__((always_inline)) void warpPrefixScan(T* c,
                                                                         uint32_t i,
@@ -38,7 +33,7 @@ SYCL_EXTERNAL inline __attribute__((always_inline)) void warpPrefixScan(T* c,
   auto x = c[i];
   auto laneId = item_ct1.get_local_id(2) & 0x1f;
 #pragma unroll
-  for (int offset = 1; offset < 32; offset <<= 1) {
+  for (unsigned int offset = 1; offset < 32; offset <<= 1) {
     /*
     DPCT1023:78: The DPC++ sub-group does not support mask options for shuffle_up.
     */
@@ -48,20 +43,11 @@ SYCL_EXTERNAL inline __attribute__((always_inline)) void warpPrefixScan(T* c,
   }
   c[i] = x;
 }
-#endif
 
 // limited to 32*32 elements....
 template <typename T>
-SYCL_EXTERNAL inline __attribute__((always_inline)) void blockPrefixScan(T const* __restrict__ ci,
-                                                                         T* __restrict__ co,
-                                                                         uint32_t size,
-                                                                         T* ws
-#ifndef DPCPP_COMPATIBILITY_TEMP
-                                                                         = nullptr
-#endif
-                                                                         ,
-                                                                         sycl::nd_item<3> item_ct1) {
-#ifdef DPCPP_COMPATIBILITY_TEMP
+SYCL_EXTERNAL inline __attribute__((always_inline)) void blockPrefixScan(
+    T const* __restrict__ ci, T* __restrict__ co, uint32_t size, T* ws, sycl::nd_item<3> item_ct1) {
   assert(ws);
   assert(size <= 1024);
   assert(0 == blockDim.x % 32);
@@ -94,11 +80,6 @@ SYCL_EXTERNAL inline __attribute__((always_inline)) void blockPrefixScan(T const
     co[i] += ws[warpId - 1];
   }
   item_ct1.barrier();
-#else
-  co[0] = ci[0];
-  for (uint32_t i = 1; i < size; ++i)
-    co[i] = ci[i] + co[i - 1];
-#endif
 }
 
 // same as above, may remove
@@ -106,13 +87,8 @@ SYCL_EXTERNAL inline __attribute__((always_inline)) void blockPrefixScan(T const
 template <typename T>
 SYCL_EXTERNAL inline __attribute__((always_inline)) void blockPrefixScan(T* c,
                                                                          uint32_t size,
-                                                                         T* ws
-#ifndef DPCPP_COMPATIBILITY_TEMP
-                                                                         = nullptr
-#endif
-                                                                         ,
+                                                                         T* ws,
                                                                          sycl::nd_item<3> item_ct1) {
-#ifdef DPCPP_COMPATIBILITY_TEMP
   assert(ws);
   assert(size <= 1024);
   assert(0 == blockDim.x % 32);
@@ -145,10 +121,6 @@ SYCL_EXTERNAL inline __attribute__((always_inline)) void blockPrefixScan(T* c,
     c[i] += ws[warpId - 1];
   }
   item_ct1.barrier();
-#else
-  for (uint32_t i = 1; i < size; ++i)
-    c[i] += c[i - 1];
-#endif
 }
 
 // limited to 1024*1024 elements....

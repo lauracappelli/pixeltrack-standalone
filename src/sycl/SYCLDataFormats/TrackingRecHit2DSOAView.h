@@ -3,10 +3,9 @@
 
 #include <CL/sycl.hpp>
 
-#include "SYCLDataFormats/gpuClusteringConstants.h"
-#include "SYCLCore/HistoContainer.h"
-#include "SYCLCore/cudaCompat.h"
 #include "Geometry/phase1PixelTopology.h"
+#include "SYCLCore/HistoContainer.h"
+#include "SYCLDataFormats/gpuClusteringConstants.h"
 
 namespace pixelCPEforGPU {
   struct ParamsOnGPU;

@@ -9,12 +9,9 @@
 #include <CL/sycl.hpp>
 #include <dpct/dpct.hpp>
 
-#ifdef CL_SYCL_LANGUAGE_VERSION
-#include "SYCLCore/device_unique_ptr.h"
-#include "SYCLCore/currentDevice.h"
-#endif
-
 #include "SYCLCore/HistoContainer.h"
+#include "SYCLCore/currentDevice.h"
+#include "SYCLCore/device_unique_ptr.h"
 
 constexpr uint32_t MaxElem = 64000;
 constexpr uint32_t MaxTk = 8000;
@@ -109,26 +106,7 @@ void verifyBulk(Assoc const* __restrict__ assoc, AtomicPairCounter const* apc, s
 }
 
 int main() {
-#ifdef CL_SYCL_LANGUAGE_VERSION
   auto current_device = cms::sycltools::currentDevice();
-#else
-  // make sure cuda emulation is working
-  std::cout << "cuda x's " << threadIdx.x << ' ' << blockIdx.x << ' ' << blockDim.x << ' ' << gridDim.x << std::endl;
-  std::cout << "cuda y's " << threadIdx.y << ' ' << blockIdx.y << ' ' << blockDim.y << ' ' << gridDim.y << std::endl;
-  std::cout << "cuda z's " << threadIdx.z << ' ' << blockIdx.z << ' ' << blockDim.z << ' ' << gridDim.z << std::endl;
-  assert(threadIdx.x == 0);
-  assert(threadIdx.y == 0);
-  assert(threadIdx.z == 0);
-  assert(blockIdx.x == 0);
-  assert(blockIdx.y == 0);
-  assert(blockIdx.z == 0);
-  assert(blockDim.x == 1);
-  assert(blockDim.y == 1);
-  assert(blockDim.z == 1);
-  assert(gridDim.x == 1);
-  assert(gridDim.y == 1);
-  assert(gridDim.z == 1);
-#endif
 
   std::cout << "OneToManyAssoc " << Assoc::nbins() << ' ' << Assoc::capacity() << ' ' << Assoc::wsSize() << std::endl;
   std::cout << "OneToManyAssoc (small) " << SmallAssoc::nbins() << ' ' << SmallAssoc::capacity() << ' '
@@ -176,7 +154,6 @@ int main() {
   }
   std::cout << "filled with " << n << " elements " << double(ave) / n << ' ' << imax << ' ' << nz << std::endl;
 
-#ifdef CL_SYCL_LANGUAGE_VERSION
   auto v_d = cms::sycltools::make_device_unique<std::array<uint16_t, 4>[]>(N, nullptr);
   assert(v_d.get());
   auto a_d = cms::sycltools::make_device_unique<Assoc[]>(1, nullptr);
@@ -184,15 +161,9 @@ int main() {
   auto ws_d = cms::sycltools::make_device_unique<uint8_t[]>(Assoc::wsSize(), nullptr);
 
   dpct::get_default_queue().memcpy(v_d.get(), tr.data(), N * sizeof(std::array<uint16_t, 4>)).wait();
-#else
-  auto a_d = std::make_unique<Assoc>();
-  auto sa_d = std::make_unique<SmallAssoc>();
-  auto v_d = tr.data();
-#endif
 
   cms::sycltools::launchZero(a_d.get(), 0);
 
-#ifdef CL_SYCL_LANGUAGE_VERSION
   auto nThreads = 256;
   auto nBlocks = (4 * N + nThreads - 1) / nThreads;
 
@@ -226,20 +197,10 @@ int main() {
         sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
         [=](sycl::nd_item<3> item_ct1) { fill(v_d_get_ct0, a_d_get_ct1, N, item_ct1); });
   });
-#else
-  count(v_d, a_d.get(), N);
-  cms::sycltools::launchFinalize(a_d.get());
-  verify(a_d.get());
-  fill(v_d, a_d.get(), N);
-#endif
 
   Assoc la;
 
-#ifdef CL_SYCL_LANGUAGE_VERSION
   dpct::get_default_queue().memcpy(&la, a_d.get(), sizeof(Assoc)).wait();
-#else
-  memcpy(&la, a_d.get(), sizeof(Assoc));  // not required, easier
-#endif
 
   std::cout << la.size() << std::endl;
   imax = 0;
@@ -261,7 +222,6 @@ int main() {
   AtomicPairCounter* dc_d;
   AtomicPairCounter dc(0);
 
-#ifdef CL_SYCL_LANGUAGE_VERSION
   dc_d = sycl::malloc_device<AtomicPairCounter>(1, dpct::get_default_queue());
   dpct::get_default_queue().memset(dc_d, 0, sizeof(AtomicPairCounter)).wait();
   nBlocks = (N + nThreads - 1) / nThreads;
@@ -338,20 +298,6 @@ int main() {
                      [=](sycl::nd_item<3> item_ct1) { verifyBulk(sa_d_get_ct0, dc_d, stream_ct1); });
   });
 
-#else
-  dc_d = &dc;
-  fillBulk(dc_d, v_d, a_d.get(), N);
-  cms::sycltools::finalizeBulk(dc_d, a_d.get());
-  verifyBulk(a_d.get(), dc_d);
-  memcpy(&la, a_d.get(), sizeof(Assoc));
-
-  AtomicPairCounter sdc(0);
-  fillBulk(&sdc, v_d, sa_d.get(), N);
-  cms::sycltools::finalizeBulk(&sdc, sa_d.get());
-  verifyBulk(sa_d.get(), &sdc);
-
-#endif
-
   std::cout << "final counter value " << dc.get().n << ' ' << dc.get().m << std::endl;
 
   std::cout << la.size() << std::endl;
@@ -369,17 +315,11 @@ int main() {
   std::cout << "found with ave occupancy " << double(ave) / N << ' ' << imax << std::endl;
 
   // here verify use of block local counters
-#ifdef CL_SYCL_LANGUAGE_VERSION
   auto m1_d = cms::sycltools::make_device_unique<Multiplicity[]>(1, nullptr);
   auto m2_d = cms::sycltools::make_device_unique<Multiplicity[]>(1, nullptr);
-#else
-  auto m1_d = std::make_unique<Multiplicity>();
-  auto m2_d = std::make_unique<Multiplicity>();
-#endif
   cms::sycltools::launchZero(m1_d.get(), 0);
   cms::sycltools::launchZero(m2_d.get(), 0);
 
-#ifdef CL_SYCL_LANGUAGE_VERSION
   nBlocks = (4 * N + nThreads - 1) / nThreads;
   /*
   DPCT1049:248: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
@@ -429,14 +369,6 @@ int main() {
   });
 
   dpct::get_current_device().queues_wait_and_throw();
-#else
-  countMulti(v_d, m1_d.get(), N);
-  countMultiLocal(v_d, m2_d.get(), N);
-  verifyMulti(m1_d.get(), m2_d.get());
 
-  cms::sycltools::launchFinalize(m1_d.get());
-  cms::sycltools::launchFinalize(m2_d.get());
-  verifyMulti(m1_d.get(), m2_d.get());
-#endif
   return 0;
 }

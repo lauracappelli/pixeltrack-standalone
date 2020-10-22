@@ -12,10 +12,8 @@
 #include <CL/sycl.hpp>
 #include <dpct/dpct.hpp>
 
-#ifdef CL_SYCL_LANGUAGE_VERSION
 #include "SYCLCore/device_unique_ptr.h"
 #include "SYCLCore/launch.h"
-#endif
 
 // dirty, but works
 #include "plugin-SiPixelClusterizer/gpuClustering.h"
@@ -33,7 +31,6 @@ int main(void) {
 
   auto h_clus = std::make_unique<int[]>(numElements);
 
-#ifdef CL_SYCL_LANGUAGE_VERSION
   auto d_id = cms::sycltools::make_device_unique<uint16_t[]>(numElements, nullptr);
   auto d_x = cms::sycltools::make_device_unique<uint16_t[]>(numElements, nullptr);
   auto d_y = cms::sycltools::make_device_unique<uint16_t[]>(numElements, nullptr);
@@ -42,13 +39,6 @@ int main(void) {
   auto d_moduleStart = cms::sycltools::make_device_unique<uint32_t[]>(MaxNumModules + 1, nullptr);
   auto d_clusInModule = cms::sycltools::make_device_unique<uint32_t[]>(MaxNumModules, nullptr);
   auto d_moduleId = cms::sycltools::make_device_unique<uint32_t[]>(MaxNumModules, nullptr);
-#else
-
-  auto h_moduleStart = std::make_unique<uint32_t[]>(MaxNumModules + 1);
-  auto h_clusInModule = std::make_unique<uint32_t[]>(MaxNumModules);
-  auto h_moduleId = std::make_unique<uint32_t[]>(MaxNumModules);
-
-#endif
 
   // later random number
   int n = 0;
@@ -235,7 +225,6 @@ int main(void) {
     assert(n <= numElements);
 
     uint32_t nModules = 0;
-#ifdef CL_SYCL_LANGUAGE_VERSION
     size_t size32 = n * sizeof(unsigned int);
     size_t size16 = n * sizeof(unsigned short);
     // size_t size8 = n * sizeof(uint8_t);
@@ -297,53 +286,13 @@ int main(void) {
                            n);
 
     dpct::get_current_device().queues_wait_and_throw();
-#else
-    h_moduleStart[0] = nModules;
-    countModules(h_id.get(), h_moduleStart.get(), h_clus.get(), n);
-    memset(h_clusInModule.get(), 0, MaxNumModules * sizeof(uint32_t));
-    gridDim.x = MaxNumModules;  //not needed in the kernel for this specific case;
-    assert(blockIdx.x == 0);
-    for (; blockIdx.x < gridDim.x; ++blockIdx.x)
-      findClus(h_id.get(),
-               h_x.get(),
-               h_y.get(),
-               h_moduleStart.get(),
-               h_clusInModule.get(),
-               h_moduleId.get(),
-               h_clus.get(),
-               n);
-    resetGrid();
-
-    nModules = h_moduleStart[0];
-    auto nclus = h_clusInModule.get();
-
-    std::cout << "before charge cut found " << std::accumulate(nclus, nclus + MaxNumModules, 0) << " clusters"
-              << std::endl;
-    for (auto i = MaxNumModules; i > 0; i--)
-      if (nclus[i - 1] > 0) {
-        std::cout << "last module is " << i - 1 << ' ' << nclus[i - 1] << std::endl;
-        break;
-      }
-    if (ncl != std::accumulate(nclus, nclus + MaxNumModules, 0))
-      std::cout << "ERROR!!!!! wrong number of cluster found" << std::endl;
-
-    gridDim.x = MaxNumModules;  // no needed in the kernel for in this specific case
-    assert(blockIdx.x == 0);
-    for (; blockIdx.x < gridDim.x; ++blockIdx.x)
-      clusterChargeCut(
-          h_id.get(), h_adc.get(), h_moduleStart.get(), h_clusInModule.get(), h_moduleId.get(), h_clus.get(), n);
-    resetGrid();
-
-#endif
 
     std::cout << "found " << nModules << " Modules active" << std::endl;
 
-#ifdef CL_SYCL_LANGUAGE_VERSION
     dpct::get_default_queue().memcpy(h_id.get(), d_id.get(), size16).wait();
     dpct::get_default_queue().memcpy(h_clus.get(), d_clus.get(), size32).wait();
     dpct::get_default_queue().memcpy(&nclus, d_clusInModule.get(), MaxNumModules * sizeof(uint32_t)).wait();
     dpct::get_default_queue().memcpy(&moduleId, d_moduleId.get(), nModules * sizeof(uint32_t)).wait();
-#endif
 
     std::set<unsigned int> clids;
     for (int i = 0; i < n; ++i) {

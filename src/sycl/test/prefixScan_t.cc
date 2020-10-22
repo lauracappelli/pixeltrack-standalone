@@ -1,6 +1,5 @@
 #include <iostream>
 
-#include <cub/cub.cuh>
 #include <CL/sycl.hpp>
 #include <dpct/dpct.hpp>
 
@@ -233,24 +232,6 @@ int main() try {
           [=](sycl::nd_item<3> item_ct1) { verify(d_out1, num_items, item_ct1, stream_ct1); });
     });
     dpct::get_current_device().queues_wait_and_throw();
-
-    // test cub
-    std::cout << "cub" << std::endl;
-    // Determine temporary device storage requirements for inclusive prefix sum
-    void *d_temp_storage = nullptr;
-    size_t temp_storage_bytes = 0;
-    cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes, d_in, d_out2, num_items);
-
-    std::cout << "temp storage " << temp_storage_bytes << std::endl;
-
-    // Allocate temporary storage for inclusive prefix sum
-    // fake larger ws already available
-    temp_storage_bytes *= 8;
-    d_temp_storage = (void *)sycl::malloc_device(temp_storage_bytes, dpct::get_default_queue());
-    std::cout << "temp storage " << temp_storage_bytes << std::endl;
-    // Run inclusive prefix sum
-    CubDebugExit(cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes, d_in, d_out2, num_items));
-    std::cout << "temp storage " << temp_storage_bytes << std::endl;
 
     /*
     DPCT1049:92: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.

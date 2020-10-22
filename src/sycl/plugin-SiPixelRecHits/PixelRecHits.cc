@@ -37,7 +37,7 @@ namespace pixelgpudetails {
                                                            SiPixelClustersCUDA const& clusters_d,
                                                            BeamSpotCUDA const& bs_d,
                                                            pixelCPEforGPU::ParamsOnGPU const* cpeParams,
-                                                           sycl::queue* stream) const {
+                                                           sycl::queue stream) const {
     auto nHits = clusters_d.nClusters();
     TrackingRecHit2DCUDA hits_d(nHits, cpeParams, clusters_d.clusModuleStart(), stream);
 
@@ -51,7 +51,7 @@ namespace pixelgpudetails {
       /*
       DPCT1049:66: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
-      stream->submit([&](sycl::handler& cgh) {
+      stream.submit([&](sycl::handler& cgh) {
         sycl::accessor<ClusParams, 0, sycl::access::mode::read_write, sycl::access::target::local> clusParams_acc_ct1(
             cgh);
 
@@ -75,12 +75,12 @@ namespace pixelgpudetails {
                          });
       });
 #ifdef GPU_DEBUG
-    stream->wait_and_throw();
+    stream.wait_and_throw();
 #endif
 
     // assuming full warp of threads is better than a smaller number...
     if (nHits) {
-      stream->submit([&](sycl::handler& cgh) {
+      stream.submit([&](sycl::handler& cgh) {
         auto clusters_d_clusModuleStart_ct0 = clusters_d.clusModuleStart();
         auto hits_d_hitsLayerStart_ct2 = hits_d.hitsLayerStart();
 
@@ -97,7 +97,7 @@ namespace pixelgpudetails {
     }
 
 #ifdef GPU_DEBUG
-    stream->wait_and_throw();
+    stream.wait_and_throw();
 #endif
 
     return hits_d;

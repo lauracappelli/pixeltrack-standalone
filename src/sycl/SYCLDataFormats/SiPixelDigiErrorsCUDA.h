@@ -11,7 +11,7 @@
 class SiPixelDigiErrorsCUDA {
 public:
   SiPixelDigiErrorsCUDA() = default;
-  explicit SiPixelDigiErrorsCUDA(size_t maxFedWords, PixelFormatterErrors errors, sycl::queue* stream);
+  explicit SiPixelDigiErrorsCUDA(size_t maxFedWords, PixelFormatterErrors errors, sycl::queue stream);
   ~SiPixelDigiErrorsCUDA() = default;
 
   SiPixelDigiErrorsCUDA(const SiPixelDigiErrorsCUDA&) = delete;
@@ -27,9 +27,9 @@ public:
 
   using HostDataError =
       std::pair<GPU::SimpleVector<PixelErrorCompact>, cms::sycltools::host::unique_ptr<PixelErrorCompact[]>>;
-  HostDataError dataErrorToHostAsync(sycl::queue* stream) const;
+  HostDataError dataErrorToHostAsync(sycl::queue stream) const;
 
-  void copyErrorToHostAsync(sycl::queue* stream);
+  void copyErrorToHostAsync(sycl::queue stream);
 
 private:
   cms::sycltools::device::unique_ptr<PixelErrorCompact[]> data_d;

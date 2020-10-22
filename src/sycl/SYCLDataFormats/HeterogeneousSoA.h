@@ -37,10 +37,10 @@ public:
   auto *operator-> () { return get(); }
 
   // in reality valid only for GPU version...
-  cms::sycltools::host::unique_ptr<T> toHostAsync(sycl::queue *stream) const {
+  cms::sycltools::host::unique_ptr<T> toHostAsync(sycl::queue stream) const {
     assert(dm_ptr);
     auto ret = cms::sycltools::make_host_unique<T>(stream);
-    stream->memcpy(ret.get(), dm_ptr.get(), sizeof(T));
+    stream.memcpy(ret.get(), dm_ptr.get(), sizeof(T));
     return ret;
   }
 
@@ -51,34 +51,34 @@ private:
   std::unique_ptr<T> std_ptr;                    //!
 };
 
-namespace sycltoolsCompat {
+namespace cudaCompat {
 
   struct GPUTraits {
     template <typename T>
     using unique_ptr = cms::sycltools::device::unique_ptr<T>;
 
     template <typename T>
-    static auto make_unique(sycl::queue *stream) {
+    static auto make_unique(sycl::queue stream) {
       return cms::sycltools::make_device_unique<T>(stream);
     }
 
     template <typename T>
-    static auto make_unique(size_t size, sycl::queue *stream) {
+    static auto make_unique(size_t size, sycl::queue stream) {
       return cms::sycltools::make_device_unique<T>(size, stream);
     }
 
     template <typename T>
-    static auto make_host_unique(sycl::queue *stream) {
+    static auto make_host_unique(sycl::queue stream) {
       return cms::sycltools::make_host_unique<T>(stream);
     }
 
     template <typename T>
-    static auto make_device_unique(sycl::queue *stream) {
+    static auto make_device_unique(sycl::queue stream) {
       return cms::sycltools::make_device_unique<T>(stream);
     }
 
     template <typename T>
-    static auto make_device_unique(size_t size, sycl::queue *stream) {
+    static auto make_device_unique(size_t size, sycl::queue stream) {
       return cms::sycltools::make_device_unique<T>(size, stream);
     }
   };
@@ -88,22 +88,22 @@ namespace sycltoolsCompat {
     using unique_ptr = cms::sycltools::host::unique_ptr<T>;
 
     template <typename T>
-    static auto make_unique(sycl::queue *stream) {
+    static auto make_unique(sycl::queue stream) {
       return cms::sycltools::make_host_unique<T>(stream);
     }
 
     template <typename T>
-    static auto make_host_unique(sycl::queue *stream) {
+    static auto make_host_unique(sycl::queue stream) {
       return cms::sycltools::make_host_unique<T>(stream);
     }
 
     template <typename T>
-    static auto make_device_unique(sycl::queue *stream) {
+    static auto make_device_unique(sycl::queue stream) {
       return cms::sycltools::make_device_unique<T>(stream);
     }
 
     template <typename T>
-    static auto make_device_unique(size_t size, sycl::queue *stream) {
+    static auto make_device_unique(size_t size, sycl::queue stream) {
       return cms::sycltools::make_device_unique<T>(size, stream);
     }
   };
@@ -113,32 +113,32 @@ namespace sycltoolsCompat {
     using unique_ptr = std::unique_ptr<T>;
 
     template <typename T>
-    static auto make_unique(sycl::queue *) {
+    static auto make_unique(sycl::queue) {
       return std::make_unique<T>();
     }
 
     template <typename T>
-    static auto make_unique(size_t size, sycl::queue *) {
+    static auto make_unique(size_t size, sycl::queue) {
       return std::make_unique<T>(size);
     }
 
     template <typename T>
-    static auto make_host_unique(sycl::queue *) {
+    static auto make_host_unique(sycl::queue) {
       return std::make_unique<T>();
     }
 
     template <typename T>
-    static auto make_device_unique(sycl::queue *) {
+    static auto make_device_unique(sycl::queue) {
       return std::make_unique<T>();
     }
 
     template <typename T>
-    static auto make_device_unique(size_t size, sycl::queue *) {
+    static auto make_device_unique(size_t size, sycl::queue) {
       return std::make_unique<T>(size);
     }
   };
 
-}  // namespace sycltoolsCompat
+}  // namespace cudaCompat
 
 // a heterogeneous unique pointer (of a different sort) ...
 template <typename T, typename Traits>
@@ -153,28 +153,28 @@ public:
   HeterogeneousSoAImpl &operator=(HeterogeneousSoAImpl &&) = default;
 
   explicit HeterogeneousSoAImpl(unique_ptr<T> &&p) : m_ptr(std::move(p)) {}
-  explicit HeterogeneousSoAImpl(sycl::queue *stream);
+  explicit HeterogeneousSoAImpl(sycl::queue stream);
 
   T const *get() const { return m_ptr.get(); }
 
   T *get() { return m_ptr.get(); }
 
-  cms::sycltools::host::unique_ptr<T> toHostAsync(sycl::queue *stream) const;
+  cms::sycltools::host::unique_ptr<T> toHostAsync(sycl::queue stream) const;
 
 private:
   unique_ptr<T> m_ptr;  //!
 };
 
 template <typename T, typename Traits>
-HeterogeneousSoAImpl<T, Traits>::HeterogeneousSoAImpl(sycl::queue *stream) {
+HeterogeneousSoAImpl<T, Traits>::HeterogeneousSoAImpl(sycl::queue stream) {
   m_ptr = Traits::template make_unique<T>(stream);
 }
 
 // in reality valid only for GPU version...
 template <typename T, typename Traits>
-cms::sycltools::host::unique_ptr<T> HeterogeneousSoAImpl<T, Traits>::toHostAsync(sycl::queue *stream) const {
+cms::sycltools::host::unique_ptr<T> HeterogeneousSoAImpl<T, Traits>::toHostAsync(sycl::queue stream) const {
   auto ret = cms::sycltools::make_host_unique<T>(stream);
-  stream->memcpy(ret.get(), get(), sizeof(T));
+  stream.memcpy(ret.get(), get(), sizeof(T));
   return ret;
 }
 

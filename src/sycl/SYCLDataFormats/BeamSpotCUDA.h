@@ -21,7 +21,7 @@ public:
   };
 
   BeamSpotCUDA() = default;
-  BeamSpotCUDA(Data const* data_h, sycl::queue* stream);
+  BeamSpotCUDA(Data const* data_h, sycl::queue stream);
 
   Data const* data() const { return data_d_.get(); }
 

@@ -8,7 +8,7 @@
 #include "SYCLCore/memsetAsync.h"
 #include "SYCLDataFormats/SiPixelDigiErrorsCUDA.h"
 
-SiPixelDigiErrorsCUDA::SiPixelDigiErrorsCUDA(size_t maxFedWords, PixelFormatterErrors errors, sycl::queue *stream)
+SiPixelDigiErrorsCUDA::SiPixelDigiErrorsCUDA(size_t maxFedWords, PixelFormatterErrors errors, sycl::queue stream)
     : formatterErrors_h(std::move(errors)) {
   error_d = cms::sycltools::make_device_unique<GPU::SimpleVector<PixelErrorCompact>>(stream);
   data_d = cms::sycltools::make_device_unique<PixelErrorCompact[]>(maxFedWords, stream);
@@ -23,11 +23,11 @@ SiPixelDigiErrorsCUDA::SiPixelDigiErrorsCUDA(size_t maxFedWords, PixelFormatterE
   cms::sycltools::copyAsync(error_d, error_h, stream);
 }
 
-void SiPixelDigiErrorsCUDA::copyErrorToHostAsync(sycl::queue *stream) {
+void SiPixelDigiErrorsCUDA::copyErrorToHostAsync(sycl::queue stream) {
   cms::sycltools::copyAsync(error_h, error_d, stream);
 }
 
-SiPixelDigiErrorsCUDA::HostDataError SiPixelDigiErrorsCUDA::dataErrorToHostAsync(sycl::queue *stream) const {
+SiPixelDigiErrorsCUDA::HostDataError SiPixelDigiErrorsCUDA::dataErrorToHostAsync(sycl::queue stream) const {
   // On one hand size() could be sufficient. On the other hand, if
   // someone copies the SimpleVector<>, (s)he might expect the data
   // buffer to actually have space for capacity() elements.

@@ -20,9 +20,6 @@
 // SYCL includes
 #include <CL/sycl.hpp>
 
-// cub includes
-#include <cub/cub.cuh>
-
 // CMSSW includes
 #include "SYCLDataFormats/gpuClusteringConstants.h"
 #include "SYCLCore/device_unique_ptr.h"
@@ -567,7 +564,7 @@ namespace pixelgpudetails {
                                                        bool useQualityInfo,
                                                        bool includeErrors,
                                                        bool debug,
-                                                       sycl::queue *stream) {
+                                                       sycl::queue stream) {
     nDigis = wordCounter;
 
 #ifdef GPU_DEBUG
@@ -592,14 +589,14 @@ namespace pixelgpudetails {
       auto word_d = cms::sycltools::make_device_unique<uint32_t[]>(wordCounter, stream);
       auto fedId_d = cms::sycltools::make_device_unique<uint8_t[]>(wordCounter, stream);
 
-      stream->memcpy(word_d.get(), wordFed.word(), wordCounter * sizeof(uint32_t));
-      stream->memcpy(fedId_d.get(), wordFed.fedId(), wordCounter * sizeof(uint8_t) / 2);
+      stream.memcpy(word_d.get(), wordFed.word(), wordCounter * sizeof(uint32_t));
+      stream.memcpy(fedId_d.get(), wordFed.fedId(), wordCounter * sizeof(uint8_t) / 2);
 
       // Launch rawToDigi kernel
       /*
       DPCT1049:194: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
-      stream->submit([&](sycl::handler &cgh) {
+      stream.submit([&](sycl::handler &cgh) {
         sycl::stream stream_ct1(64 * 1024, 80, cgh);
 
         auto word_d_get_ct3 = word_d.get();
@@ -654,7 +651,7 @@ namespace pixelgpudetails {
       /*
       DPCT1049:196: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
-      stream->submit([&](sycl::handler &cgh) {
+      stream.submit([&](sycl::handler &cgh) {
         sycl::stream stream_ct1(64 * 1024, 80, cgh);
 
         auto digis_d_moduleInd_ct0 = digis_d.moduleInd();
@@ -693,7 +690,7 @@ namespace pixelgpudetails {
       /*
       DPCT1049:198: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
-      stream->submit([&](sycl::handler &cgh) {
+      stream.submit([&](sycl::handler &cgh) {
         auto digis_d_c_moduleInd_ct0 = digis_d.c_moduleInd();
         auto clusters_d_moduleStart_ct1 = clusters_d.moduleStart();
         auto digis_d_clus_ct2 = digis_d.clus();
@@ -708,7 +705,7 @@ namespace pixelgpudetails {
       });
 
       // read the number of modules into a data member, used by getProduct())
-      stream->memcpy(&(nModules_Clusters_h[0]), clusters_d.moduleStart(), sizeof(uint32_t));
+      stream.memcpy(&(nModules_Clusters_h[0]), clusters_d.moduleStart(), sizeof(uint32_t));
 
       threadsPerBlock = 256;
       blocks = MaxNumModules;
@@ -718,7 +715,7 @@ namespace pixelgpudetails {
       /*
       DPCT1049:201: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
-      stream->submit([&](sycl::handler &cgh) {
+      stream.submit([&](sycl::handler &cgh) {
         sycl::stream stream_ct1(64 * 1024, 80, cgh);
 
         sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> msize_acc_ct1(cgh);
@@ -763,7 +760,7 @@ namespace pixelgpudetails {
       /*
       DPCT1049:203: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
-      stream->submit([&](sycl::handler &cgh) {
+      stream.submit([&](sycl::handler &cgh) {
         sycl::stream stream_ct1(64 * 1024, 80, cgh);
 
         sycl::accessor<int32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> charge_acc_ct1(
@@ -810,7 +807,7 @@ namespace pixelgpudetails {
       /*
       DPCT1049:205: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
-      stream->submit([&](sycl::handler &cgh) {
+      stream.submit([&](sycl::handler &cgh) {
         sycl::accessor<uint32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc_ct1(
             sycl::range(32), cgh);
 
@@ -825,7 +822,7 @@ namespace pixelgpudetails {
       });
 
       // last element holds the number of all clusters
-      stream->memcpy(
+      stream.memcpy(
           &(nModules_Clusters_h[1]), clusters_d.clusModuleStart() + gpuClustering::MaxNumModules, sizeof(uint32_t));
 
 #ifdef GPU_DEBUG

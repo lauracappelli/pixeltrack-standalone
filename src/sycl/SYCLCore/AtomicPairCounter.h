@@ -5,8 +5,6 @@
 
 #include <CL/sycl.hpp>
 
-#include "SYCLCore/cudaCompat.h"
-
 class AtomicPairCounter {
 public:
   using c_type = unsigned long long int;
@@ -38,13 +36,8 @@ public:
     c_type c = i;
     c += incr;
     Atomic2 ret;
-#ifdef DPCPP_COMPATIBILITY_TEMP
     ret.ac =
         sycl::atomic<AtomicPairCounter::c_type>(sycl::global_ptr<AtomicPairCounter::c_type>(&counter.ac)).fetch_add(c);
-#else
-    ret.ac = counter.ac;
-    counter.ac += c;
-#endif
     return ret.counters;
   }
 

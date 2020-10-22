@@ -10,7 +10,6 @@
 
 #include "DataFormats/SOARotation.h"
 #include "Geometry/phase1PixelTopology.h"
-#include "SYCLCore/cudaCompat.h"
 #include "SYCLDataFormats/gpuClusteringConstants.h"
 
 namespace pixelCPEforGPU {

@@ -10,12 +10,12 @@
 namespace cms {
   namespace sycltools {
     template <typename T>
-    inline void memsetAsync(device::unique_ptr<T>& ptr, T value, sycl::queue* stream) {
+    inline void memsetAsync(device::unique_ptr<T>& ptr, T value, sycl::queue stream) {
       // Shouldn't compile for array types because of sizeof(T), but
       // let's add an assert with a more helpful message
       static_assert(std::is_array<T>::value == false,
                     "For array types, use the other overload with the size parameter");
-      stream->memset(ptr.get(), value, sizeof(T));
+      stream.memset(ptr.get(), value, sizeof(T));
     }
 
     /**
@@ -25,8 +25,8 @@ namespace cms {
    * `sizeof(T) > 1` and `value != 0`.
    */
     template <typename T>
-    inline void memsetAsync(device::unique_ptr<T[]>& ptr, int value, size_t nelements, sycl::queue* stream) {
-      stream->memset(ptr.get(), value, nelements * sizeof(T));
+    inline void memsetAsync(device::unique_ptr<T[]>& ptr, int value, size_t nelements, sycl::queue stream) {
+      stream.memset(ptr.get(), value, nelements * sizeof(T));
     }
   }  // namespace sycltools
 }  // namespace cms

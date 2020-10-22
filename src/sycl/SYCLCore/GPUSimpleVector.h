@@ -8,8 +8,6 @@
 
 #include <CL/sycl.hpp>
 
-#include "SYCLCore/cudaCompat.h"
-
 namespace GPU {
   template <class T>
   struct SimpleVector {

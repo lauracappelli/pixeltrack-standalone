@@ -37,7 +37,7 @@ namespace gpuCalibPixel {
     // zero for next kernels...
     if (0 == first)
       clusModuleStart[0] = moduleStart[0] = 0;
-    for (int i = first; i < gpuClustering::MaxNumModules;
+    for (unsigned int i = first; i < gpuClustering::MaxNumModules;
          i += item_ct1.get_group_range(2) * item_ct1.get_local_range().get(2)) {
       nClustersInModule[i] = 0;
     }

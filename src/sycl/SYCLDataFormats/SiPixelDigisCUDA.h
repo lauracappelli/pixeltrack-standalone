@@ -5,12 +5,11 @@
 
 #include "SYCLCore/device_unique_ptr.h"
 #include "SYCLCore/host_unique_ptr.h"
-#include "SYCLCore/cudaCompat.h"
 
 class SiPixelDigisCUDA {
 public:
   SiPixelDigisCUDA() = default;
-  explicit SiPixelDigisCUDA(size_t maxFedWords, sycl::queue *stream);
+  explicit SiPixelDigisCUDA(size_t maxFedWords, sycl::queue stream);
   ~SiPixelDigisCUDA() = default;
 
   SiPixelDigisCUDA(const SiPixelDigisCUDA &) = delete;
@@ -50,10 +49,10 @@ public:
   uint32_t const *c_pdigi() const { return pdigi_d.get(); }
   uint32_t const *c_rawIdArr() const { return rawIdArr_d.get(); }
 
-  cms::sycltools::host::unique_ptr<uint16_t[]> adcToHostAsync(sycl::queue *stream) const;
-  cms::sycltools::host::unique_ptr<int32_t[]> clusToHostAsync(sycl::queue *stream) const;
-  cms::sycltools::host::unique_ptr<uint32_t[]> pdigiToHostAsync(sycl::queue *stream) const;
-  cms::sycltools::host::unique_ptr<uint32_t[]> rawIdArrToHostAsync(sycl::queue *stream) const;
+  cms::sycltools::host::unique_ptr<uint16_t[]> adcToHostAsync(sycl::queue stream) const;
+  cms::sycltools::host::unique_ptr<int32_t[]> clusToHostAsync(sycl::queue stream) const;
+  cms::sycltools::host::unique_ptr<uint32_t[]> pdigiToHostAsync(sycl::queue stream) const;
+  cms::sycltools::host::unique_ptr<uint32_t[]> rawIdArrToHostAsync(sycl::queue stream) const;
 
   class DeviceConstView {
   public:

@@ -52,7 +52,7 @@ namespace testTrackingRecHit2D {
 }
 
 int main() {
-  sycl::queue* stream;
+  sycl::queue stream;
   /*
   DPCT1025:58: The SYCL queue is created ignoring the flag/priority options.
   */

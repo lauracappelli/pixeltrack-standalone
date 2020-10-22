@@ -10,12 +10,7 @@
 
 #include <CL/sycl.hpp>
 
-#ifdef CL_SYCL_LANGUAGE_VERSION
-#include <cub/cub.cuh>
-#endif
-
 #include "SYCLCore/AtomicPairCounter.h"
-#include "SYCLCore/cudastdAlgorithm.h"
 #include "SYCLCore/prefixScan.h"
 
 namespace cms {
@@ -30,7 +25,7 @@ namespace cms {
       int first = item_ct1.get_local_range().get(2) * item_ct1.get_group(2) + item_ct1.get_local_id(2);
       for (int i = first, nt = offsets[nh]; i < nt;
            i += item_ct1.get_group_range(2) * item_ct1.get_local_range().get(2)) {
-        auto off = cuda_std::upper_bound(offsets, offsets + nh + 1, i);
+        auto off = std::upper_bound(offsets, offsets + nh + 1, i);
         assert((*off) > 0);
         int32_t ih = off - offsets - 1;
         assert(ih >= 0);
@@ -48,7 +43,7 @@ namespace cms {
       int first = item_ct1.get_local_range().get(2) * item_ct1.get_group(2) + item_ct1.get_local_id(2);
       for (int i = first, nt = offsets[nh]; i < nt;
            i += item_ct1.get_group_range(2) * item_ct1.get_local_range().get(2)) {
-        auto off = cuda_std::upper_bound(offsets, offsets + nh + 1, i);
+        auto off = std::upper_bound(offsets, offsets + nh + 1, i);
         assert((*off) > 0);
         int32_t ih = off - offsets - 1;
         assert(ih >= 0);
@@ -58,41 +53,19 @@ namespace cms {
     }
 
     template <typename Histo>
-    inline void launchZero(Histo *__restrict__ h,
-                           sycl::queue *stream
-#ifndef CL_SYCL_LANGUAGE_VERSION
-                           = cudaStreamDefault
-#endif
-    ) {
+    inline void launchZero(Histo *__restrict__ h, sycl::queue stream) {
       uint32_t *off = (uint32_t *)((char *)(h) + offsetof(Histo, off));
-#ifdef CL_SYCL_LANGUAGE_VERSION
-      stream->memset(off, 0, 4 * Histo::totbins());
-#else
-      ::memset(off, 0, 4 * Histo::totbins());
-#endif
+      stream.memset(off, 0, 4 * Histo::totbins());
     }
 
     template <typename Histo>
-    inline void launchFinalize(Histo *__restrict__ h,
-                               uint8_t *__restrict__ ws
-#ifndef CL_SYCL_LANGUAGE_VERSION
-                               = cudaStreamDefault
-#endif
-                               ,
-                               sycl::queue *stream
-#ifndef CL_SYCL_LANGUAGE_VERSION
-                               = cudaStreamDefault
-#endif
-                               ) try {
-#ifdef CL_SYCL_LANGUAGE_VERSION
+    inline void launchFinalize(Histo *__restrict__ h, uint8_t *__restrict__ ws, sycl::queue stream) try {
       assert(ws);
       uint32_t *off = (uint32_t *)((char *)(h) + offsetof(Histo, off));
       size_t wss = Histo::wsSize();
       assert(wss > 0);
-      CubDebugExit(cub::DeviceScan::InclusiveSum(ws, wss, off, off, Histo::totbins(), stream));
-#else
-      h->finalize();
-#endif
+#warning Replace the prefix scan with a version that does not depend on cub
+      //CubDebugExit(cub::DeviceScan::InclusiveSum(ws, wss, off, off, Histo::totbins(), stream));
     } catch (sycl::exception const &exc) {
       std::cerr << exc.what() << "Exception caught at file:" << __FILE__ << ", line:" << __LINE__ << std::endl;
       std::exit(1);
@@ -106,18 +79,13 @@ namespace cms {
                                    uint32_t const *__restrict__ offsets,
                                    uint32_t totSize,
                                    int nthreads,
-                                   sycl::queue *stream
-#ifndef CL_SYCL_LANGUAGE_VERSION
-                                   = cudaStreamDefault
-#endif
-    ) {
+                                   sycl::queue stream) {
       launchZero(h, stream);
-#ifdef CL_SYCL_LANGUAGE_VERSION
       auto nblocks = (totSize + nthreads - 1) / nthreads;
       /*
       DPCT1049:33: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
-      stream->submit([&](sycl::handler &cgh) {
+      stream.submit([&](sycl::handler &cgh) {
         cgh.parallel_for(
             sycl::nd_range(sycl::range(1, 1, nblocks) * sycl::range(1, 1, nthreads), sycl::range(1, 1, nthreads)),
             [=](sycl::nd_item<3> item_ct1) { countFromVector(h, nh, v, offsets, item_ct1); });
@@ -126,16 +94,11 @@ namespace cms {
       /*
       DPCT1049:35: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
-      stream->submit([&](sycl::handler &cgh) {
+      stream.submit([&](sycl::handler &cgh) {
         cgh.parallel_for(
             sycl::nd_range(sycl::range(1, 1, nblocks) * sycl::range(1, 1, nthreads), sycl::range(1, 1, nthreads)),
             [=](sycl::nd_item<3> item_ct1) { fillFromVector(h, nh, v, offsets, item_ct1); });
       });
-#else
-      countFromVector(h, nh, v, offsets);
-      h->finalize();
-      fillFromVector(h, nh, v, offsets);
-#endif
     }
 
     template <typename Assoc>
@@ -208,15 +171,12 @@ public:
   static constexpr auto histOff(uint32_t nh) { return NBINS * nh; }
 
   static size_t wsSize() {
-#ifdef CL_SYCL_LANGUAGE_VERSION
     uint32_t *v = nullptr;
     void *d_temp_storage = nullptr;
     size_t temp_storage_bytes = 0;
-    cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes, v, v, totbins());
+#warning Replace the prefix scan with a version that does not depend on cub
+    //cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes, v, v, totbins());
     return temp_storage_bytes;
-#else
-    return 0;
-#endif
   }
 
   static constexpr UT bin(T t) {
@@ -232,33 +192,18 @@ public:
 
   void add(CountersOnly const &co) {
     for (uint32_t i = 0; i < totbins(); ++i) {
-#ifdef DPCPP_COMPATIBILITY_TEMP
       sycl::atomic<HistoContainer<unsigned int, 8, 8000, 32, unsigned short, 1>::Counter>(
           sycl::global_ptr<HistoContainer<unsigned int, 8, 8000, 32, unsigned short, 1>::Counter>(off + i))
           .fetch_add(co.off[i]);
-#else
-      auto &a = (std::atomic<Counter> &)(off[i]);
-      a += co.off[i];
-#endif
     }
   }
 
   static inline __attribute__((always_inline)) uint32_t atomicIncrement(Counter &x) {
-#ifdef DPCPP_COMPATIBILITY_TEMP
     return sycl::atomic<HistoContainer::Counter>(sycl::global_ptr<HistoContainer::Counter>(&x)).fetch_add(1);
-#else
-    auto &a = (std::atomic<Counter> &)(x);
-    return a++;
-#endif
   }
 
   static inline __attribute__((always_inline)) uint32_t atomicDecrement(Counter &x) {
-#ifdef DPCPP_COMPATIBILITY_TEMP
     return sycl::atomic<HistoContainer::Counter>(sycl::global_ptr<HistoContainer::Counter>(&x)).fetch_sub(1);
-#else
-    auto &a = (std::atomic<Counter> &)(x);
-    return a--;
-#endif
   }
 
   inline __attribute__((always_inline)) void countDirect(T b) {

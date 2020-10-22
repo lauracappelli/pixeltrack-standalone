@@ -13,7 +13,7 @@
 #include "Framework/WaitingTaskWithArenaHolder.h"
 
 namespace cms {
-  namespace sycltoolstest {
+  namespace sycltest {
     class TestScopedContext;
   }
 
@@ -163,7 +163,7 @@ namespace cms {
       }
 
     private:
-      friend class cudatest::TestScopedContext;
+      friend class sycltest::TestScopedContext;
 
       // This construcor is only meant for testing
       explicit ScopedContextProduce(sycl::queue stream, sycl::event event)

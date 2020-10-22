@@ -19,7 +19,7 @@ public:
   explicit TrackingRecHit2DHeterogeneous(uint32_t nHits,
                                          pixelCPEforGPU::ParamsOnGPU const* cpeParams,
                                          uint32_t const* hitsModuleStart,
-                                         sycl::queue* stream);
+                                         sycl::queue stream);
 
   ~TrackingRecHit2DHeterogeneous() = default;
 
@@ -39,14 +39,14 @@ public:
   auto iphi() { return m_iphi; }
 
   // only the local coord and detector index
-  cms::sycltools::host::unique_ptr<float[]> localCoordToHostAsync(sycl::queue* stream) const;
-  cms::sycltools::host::unique_ptr<uint16_t[]> detIndexToHostAsync(sycl::queue* stream) const;
-  cms::sycltools::host::unique_ptr<uint32_t[]> hitsModuleStartToHostAsync(sycl::queue* stream) const;
+  cms::sycltools::host::unique_ptr<float[]> localCoordToHostAsync(sycl::queue stream) const;
+  cms::sycltools::host::unique_ptr<uint16_t[]> detIndexToHostAsync(sycl::queue stream) const;
+  cms::sycltools::host::unique_ptr<uint32_t[]> hitsModuleStartToHostAsync(sycl::queue stream) const;
 
   // for validation
-  cms::sycltools::host::unique_ptr<float[]> globalCoordToHostAsync(sycl::queue* stream) const;
-  cms::sycltools::host::unique_ptr<int32_t[]> chargeToHostAsync(sycl::queue* stream) const;
-  cms::sycltools::host::unique_ptr<int16_t[]> sizeToHostAsync(sycl::queue* stream) const;
+  cms::sycltools::host::unique_ptr<float[]> globalCoordToHostAsync(sycl::queue stream) const;
+  cms::sycltools::host::unique_ptr<int32_t[]> chargeToHostAsync(sycl::queue stream) const;
+  cms::sycltools::host::unique_ptr<int16_t[]> sizeToHostAsync(sycl::queue stream) const;
 
 private:
   static constexpr uint32_t n16 = 4;
@@ -77,7 +77,7 @@ template <typename Traits>
 TrackingRecHit2DHeterogeneous<Traits>::TrackingRecHit2DHeterogeneous(uint32_t nHits,
                                                                      pixelCPEforGPU::ParamsOnGPU const* cpeParams,
                                                                      uint32_t const* hitsModuleStart,
-                                                                     sycl::queue* stream)
+                                                                     sycl::queue stream)
     : m_nHits(nHits), m_hitsModuleStart(hitsModuleStart) {
   auto view = Traits::template make_host_unique<TrackingRecHit2DSOAView>(stream);
 
@@ -90,11 +90,7 @@ TrackingRecHit2DHeterogeneous<Traits>::TrackingRecHit2DHeterogeneous(uint32_t nH
 
   // if empy do not bother
   if (0 == nHits) {
-    if
-#ifndef CL_SYCL_LANGUAGE_VERSION
-        constexpr
-#endif
-        (std::is_same<Traits, cudaCompat::GPUTraits>::value) {
+    if constexpr (std::is_same<Traits, cudaCompat::GPUTraits>::value) {
       cms::sycltools::copyAsync(m_view, view, stream);
     } else {
       m_view.reset(view.release());  // NOLINT: std::move() breaks CUDA version
@@ -137,11 +133,7 @@ TrackingRecHit2DHeterogeneous<Traits>::TrackingRecHit2DHeterogeneous(uint32_t nH
   m_hitsLayerStart = view->m_hitsLayerStart = reinterpret_cast<uint32_t*>(get32(n32));
 
   // transfer view
-  if
-#ifndef CL_SYCL_LANGUAGE_VERSION
-      constexpr
-#endif
-      (std::is_same<Traits, cudaCompat::GPUTraits>::value) {
+  if constexpr (std::is_same<Traits, cudaCompat::GPUTraits>::value) {
     cms::sycltools::copyAsync(m_view, view, stream);
   } else {
     m_view.reset(view.release());  // NOLINT: std::move() breaks CUDA version
