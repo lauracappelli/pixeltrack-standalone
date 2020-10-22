@@ -1,7 +1,7 @@
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <cassert>
 #include <iostream>
+
+#include <CL/sycl.hpp>
 
 #include "SYCLCore/cudastdAlgorithm.h"
 #include "SYCLCore/launch.h"

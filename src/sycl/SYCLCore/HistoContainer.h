@@ -1,23 +1,20 @@
 #ifndef HeterogeneousCore_CUDAUtilities_interface_HistoContainer_h
 #define HeterogeneousCore_CUDAUtilities_interface_HistoContainer_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <algorithm>
-#ifndef DPCPP_COMPATIBILITY_TEMP
 #include <atomic>
-#endif  // __CUDA_ARCH__
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
+
+#include <CL/sycl.hpp>
 
 #ifdef CL_SYCL_LANGUAGE_VERSION
 #include <cub/cub.cuh>
 #endif
 
 #include "SYCLCore/AtomicPairCounter.h"
-#include "SYCLCore/cudaCheck.h"
-#include "SYCLCore/cuda_assert.h"
 #include "SYCLCore/cudastdAlgorithm.h"
 #include "SYCLCore/prefixScan.h"
 
@@ -69,10 +66,7 @@ namespace cms {
     ) {
       uint32_t *off = (uint32_t *)((char *)(h) + offsetof(Histo, off));
 #ifdef CL_SYCL_LANGUAGE_VERSION
-      /*
-      DPCT1003:32: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-      */
-      cudaCheck((stream->memset(off, 0, 4 * Histo::totbins()), 0));
+      stream->memset(off, 0, 4 * Histo::totbins());
 #else
       ::memset(off, 0, 4 * Histo::totbins());
 #endif
@@ -128,10 +122,6 @@ namespace cms {
             sycl::nd_range(sycl::range(1, 1, nblocks) * sycl::range(1, 1, nthreads), sycl::range(1, 1, nthreads)),
             [=](sycl::nd_item<3> item_ct1) { countFromVector(h, nh, v, offsets, item_ct1); });
       });
-      /*
-      DPCT1010:34: SYCL uses exceptions to report errors and does not use the error codes. The call was replaced with 0. You need to rewrite this code.
-      */
-      cudaCheck(0);
       launchFinalize(h, ws, stream);
       /*
       DPCT1049:35: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
@@ -141,10 +131,6 @@ namespace cms {
             sycl::nd_range(sycl::range(1, 1, nblocks) * sycl::range(1, 1, nthreads), sycl::range(1, 1, nthreads)),
             [=](sycl::nd_item<3> item_ct1) { fillFromVector(h, nh, v, offsets, item_ct1); });
       });
-      /*
-      DPCT1010:36: SYCL uses exceptions to report errors and does not use the error codes. The call was replaced with 0. You need to rewrite this code.
-      */
-      cudaCheck(0);
 #else
       countFromVector(h, nh, v, offsets);
       h->finalize();
@@ -162,7 +148,7 @@ namespace cms {
 
 // iteratate over N bins left and right of the one containing "v"
 template <typename Hist, typename V, typename Func>
-__dpct_inline__ void forEachInBins(Hist const &hist, V value, int n, Func func) {
+inline __attribute__((always_inline)) void forEachInBins(Hist const &hist, V value, int n, Func func) {
   int bs = Hist::bin(value);
   int be = sycl::min(int(Hist::nbins() - 1), bs + n);
   bs = sycl::max(0, bs - n);
@@ -174,7 +160,7 @@ __dpct_inline__ void forEachInBins(Hist const &hist, V value, int n, Func func) 
 
 // iteratate over bins containing all values in window wmin, wmax
 template <typename Hist, typename V, typename Func>
-__dpct_inline__ void forEachInWindow(Hist const &hist, V wmin, V wmax, Func const &func) {
+inline __attribute__((always_inline)) void forEachInWindow(Hist const &hist, V wmin, V wmax, Func const &func) {
   auto bs = Hist::bin(wmin);
   auto be = Hist::bin(wmax);
   assert(be >= bs);
@@ -257,7 +243,7 @@ public:
     }
   }
 
-  static __dpct_inline__ uint32_t atomicIncrement(Counter &x) {
+  static inline __attribute__((always_inline)) uint32_t atomicIncrement(Counter &x) {
 #ifdef DPCPP_COMPATIBILITY_TEMP
     return sycl::atomic<HistoContainer::Counter>(sycl::global_ptr<HistoContainer::Counter>(&x)).fetch_add(1);
 #else
@@ -266,7 +252,7 @@ public:
 #endif
   }
 
-  static __dpct_inline__ uint32_t atomicDecrement(Counter &x) {
+  static inline __attribute__((always_inline)) uint32_t atomicDecrement(Counter &x) {
 #ifdef DPCPP_COMPATIBILITY_TEMP
     return sycl::atomic<HistoContainer::Counter>(sycl::global_ptr<HistoContainer::Counter>(&x)).fetch_sub(1);
 #else
@@ -275,19 +261,19 @@ public:
 #endif
   }
 
-  __dpct_inline__ void countDirect(T b) {
+  inline __attribute__((always_inline)) void countDirect(T b) {
     assert(b < nbins());
     atomicIncrement(off[b]);
   }
 
-  __dpct_inline__ void fillDirect(T b, index_type j) {
+  inline __attribute__((always_inline)) void fillDirect(T b, index_type j) {
     assert(b < nbins());
     auto w = atomicDecrement(off[b]);
     assert(w > 0);
     bins[w - 1] = j;
   }
 
-  __dpct_inline__ int32_t bulkFill(AtomicPairCounter &apc, index_type const *v, uint32_t n) {
+  inline __attribute__((always_inline)) int32_t bulkFill(AtomicPairCounter &apc, index_type const *v, uint32_t n) {
     auto c = apc.add(n);
     if (c.m >= nbins())
       return -int32_t(c.m);
@@ -297,9 +283,11 @@ public:
     return c.m;
   }
 
-  __dpct_inline__ void bulkFinalize(AtomicPairCounter const &apc) { off[apc.get().m] = apc.get().n; }
+  inline __attribute__((always_inline)) void bulkFinalize(AtomicPairCounter const &apc) {
+    off[apc.get().m] = apc.get().n;
+  }
 
-  __dpct_inline__ void bulkFinalizeFill(AtomicPairCounter const &apc, sycl::nd_item<3> item_ct1) {
+  inline __attribute__((always_inline)) void bulkFinalizeFill(AtomicPairCounter const &apc, sycl::nd_item<3> item_ct1) {
     auto m = apc.get().m;
     auto n = apc.get().n;
     if (m >= nbins()) {  // overflow!
@@ -312,13 +300,13 @@ public:
     }
   }
 
-  __dpct_inline__ void count(T t) {
+  inline __attribute__((always_inline)) void count(T t) {
     uint32_t b = bin(t);
     assert(b < nbins());
     atomicIncrement(off[b]);
   }
 
-  __dpct_inline__ void fill(T t, index_type j) {
+  inline __attribute__((always_inline)) void fill(T t, index_type j) {
     uint32_t b = bin(t);
     assert(b < nbins());
     auto w = atomicDecrement(off[b]);
@@ -326,7 +314,7 @@ public:
     bins[w - 1] = j;
   }
 
-  __dpct_inline__ void count(T t, uint32_t nh) {
+  inline __attribute__((always_inline)) void count(T t, uint32_t nh) {
     uint32_t b = bin(t);
     assert(b < nbins());
     b += histOff(nh);
@@ -334,7 +322,7 @@ public:
     atomicIncrement(off[b]);
   }
 
-  __dpct_inline__ void fill(T t, index_type j, uint32_t nh) {
+  inline __attribute__((always_inline)) void fill(T t, index_type j, uint32_t nh) {
     uint32_t b = bin(t);
     assert(b < nbins());
     b += histOff(nh);
@@ -344,7 +332,7 @@ public:
     bins[w - 1] = j;
   }
 
-  __dpct_inline__ void finalize(sycl::nd_item<3> item_ct1, Counter *ws = nullptr) {
+  inline __attribute__((always_inline)) void finalize(sycl::nd_item<3> item_ct1, Counter *ws = nullptr) {
     assert(off[totbins() - 1] == 0);
     blockPrefixScan(off, totbins(), ws, item_ct1);
     assert(off[totbins() - 1] == off[totbins() - 2]);

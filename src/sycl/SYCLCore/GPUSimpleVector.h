@@ -3,10 +3,10 @@
 
 //  author: Felice Pantaleo, CERN, 2018
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <type_traits>
 #include <utility>
+
+#include <CL/sycl.hpp>
 
 #include "SYCLCore/cudaCompat.h"
 

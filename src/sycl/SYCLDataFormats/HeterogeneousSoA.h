@@ -1,12 +1,11 @@
 #ifndef SYCLDataFormatsCommonHeterogeneousSoA_H
 #define SYCLDataFormatsCommonHeterogeneousSoA_H
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <cassert>
 
+#include <CL/sycl.hpp>
+
 #include "SYCLCore/copyAsync.h"
-#include "SYCLCore/cudaCheck.h"
 #include "SYCLCore/device_unique_ptr.h"
 #include "SYCLCore/host_unique_ptr.h"
 
@@ -29,22 +28,19 @@ public:
 
   auto const &operator*() const { return *get(); }
 
-  auto const *operator->() const { return get(); }
+  auto const *operator-> () const { return get(); }
 
   auto *get() { return dm_ptr ? dm_ptr.get() : (hm_ptr ? hm_ptr.get() : std_ptr.get()); }
 
   auto &operator*() { return *get(); }
 
-  auto *operator->() { return get(); }
+  auto *operator-> () { return get(); }
 
   // in reality valid only for GPU version...
   cms::sycltools::host::unique_ptr<T> toHostAsync(sycl::queue *stream) const {
     assert(dm_ptr);
     auto ret = cms::sycltools::make_host_unique<T>(stream);
-    /*
-    DPCT1003:55: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((stream->memcpy(ret.get(), dm_ptr.get(), sizeof(T)), 0));
+    stream->memcpy(ret.get(), dm_ptr.get(), sizeof(T));
     return ret;
   }
 
@@ -52,7 +48,7 @@ private:
   // a union wan't do it, a variant will not be more efficienct
   cms::sycltools::device::unique_ptr<T> dm_ptr;  //!
   cms::sycltools::host::unique_ptr<T> hm_ptr;    //!
-  std::unique_ptr<T> std_ptr;               //!
+  std::unique_ptr<T> std_ptr;                    //!
 };
 
 namespace sycltoolsCompat {
@@ -178,10 +174,7 @@ HeterogeneousSoAImpl<T, Traits>::HeterogeneousSoAImpl(sycl::queue *stream) {
 template <typename T, typename Traits>
 cms::sycltools::host::unique_ptr<T> HeterogeneousSoAImpl<T, Traits>::toHostAsync(sycl::queue *stream) const {
   auto ret = cms::sycltools::make_host_unique<T>(stream);
-  /*
-  DPCT1003:19: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-  */
-  cudaCheck((stream->memcpy(ret.get(), get(), sizeof(T)), 0));
+  stream->memcpy(ret.get(), get(), sizeof(T));
   return ret;
 }
 

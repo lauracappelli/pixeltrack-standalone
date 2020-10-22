@@ -7,11 +7,11 @@
 
 #ifndef CL_SYCL_LANGUAGE_VERSION
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+
+#include <CL/sycl.hpp>
 
 namespace sycltoolsCompat {
 

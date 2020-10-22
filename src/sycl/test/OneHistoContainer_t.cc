@@ -1,13 +1,13 @@
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <random>
 #include <limits>
 
+#include <CL/sycl.hpp>
+#include <dpct/dpct.hpp>
+
 #include "SYCLCore/device_unique_ptr.h"
-#include "SYCLCore/cudaCheck.h"
 #include "SYCLCore/HistoContainer.h"
 #include "SYCLCore/launch.h"
 
@@ -75,7 +75,7 @@ void mykernel(T const *__restrict__ v,
     auto ftest = [&](int k) {
       assert(k >= 0 && k < N);
       ++tot;
-    SYCL_EXTERNAL
+      SYCL_EXTERNAL
     };
     forEachInWindow(*hist, v[j], v[j], ftest);
     int rtot = hist->size(b0);
@@ -130,10 +130,7 @@ void go() {
 
     assert(v_d.get());
     assert(v);
-    /*
-    DPCT1003:233: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memcpy(v_d.get(), v, N * sizeof(T)).wait(), 0));
+    dpct::get_default_queue().memcpy(v_d.get(), v, N * sizeof(T)).wait();
     assert(v_d.get());
     cms::sycltools::launch(mykernel<T, NBINS, S, DELTA>, {1, 256}, v_d.get(), N);
   }

@@ -1,13 +1,13 @@
 #ifndef RecoLocalTracker_SiPixelClusterizer_plugins_gpuCalibPixel_h
 #define RecoLocalTracker_SiPixelClusterizer_plugins_gpuCalibPixel_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
 
+#include <CL/sycl.hpp>
+
 #include "CondFormats/SiPixelGainForHLTonGPU.h"
-#include "SYCLCore/cuda_assert.h"
 
 #include "gpuClusteringConstants.h"
 

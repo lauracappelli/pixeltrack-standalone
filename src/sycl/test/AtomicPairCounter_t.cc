@@ -1,9 +1,9 @@
+#include <cassert>
+
 #include <CL/sycl.hpp>
 #include <dpct/dpct.hpp>
-#include "SYCLCore/cudaCheck.h"
-#include "SYCLCore/AtomicPairCounter.h"
 
-#include "SYCLCore/cuda_assert.h"
+#include "SYCLCore/AtomicPairCounter.h"
 
 void update(AtomicPairCounter *dc, uint32_t *ind, uint32_t *cont, uint32_t n, sycl::nd_item<3> item_ct1) {
   auto i = item_ct1.get_group(2) * item_ct1.get_local_range().get(2) + item_ct1.get_local_id(2);
@@ -43,23 +43,16 @@ void verify(
 #include <iostream>
 int main() {
   AtomicPairCounter *dc_d;
-  cudaCheck((dc_d = sycl::malloc_device<AtomicPairCounter>(1, dpct::get_default_queue()), 0));
-  /*
-  DPCT1003:151: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-  */
-  cudaCheck((dpct::get_default_queue().memset(dc_d, 0, sizeof(AtomicPairCounter)).wait(), 0));
+  dc_d = sycl::malloc_device<AtomicPairCounter>(1, dpct::get_default_queue());
+  dpct::get_default_queue().memset(dc_d, 0, sizeof(AtomicPairCounter)).wait();
 
   std::cout << "size " << sizeof(AtomicPairCounter) << std::endl;
 
   constexpr uint32_t N = 20000;
   constexpr uint32_t M = N * 6;
   uint32_t *n_d, *m_d;
-  /*
-  DPCT1003:152: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-  */
-  cudaCheck((n_d = (uint32_t *)sycl::malloc_device(N * sizeof(int), dpct::get_default_queue()), 0));
-  // cudaMemset(n_d, 0, N*sizeof(int));
-  cudaCheck((m_d = (uint32_t *)sycl::malloc_device(M * sizeof(int), dpct::get_default_queue()), 0));
+  n_d = (uint32_t *)sycl::malloc_device(N * sizeof(int), dpct::get_default_queue());
+  m_d = (uint32_t *)sycl::malloc_device(M * sizeof(int), dpct::get_default_queue());
 
   /*
   DPCT1049:153: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
@@ -81,10 +74,7 @@ int main() {
   });
 
   AtomicPairCounter dc;
-  /*
-  DPCT1003:155: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-  */
-  cudaCheck((dpct::get_default_queue().memcpy(&dc, dc_d, sizeof(AtomicPairCounter)).wait(), 0));
+  dpct::get_default_queue().memcpy(&dc, dc_d, sizeof(AtomicPairCounter)).wait();
 
   std::cout << dc.get().n << ' ' << dc.get().m << std::endl;
 

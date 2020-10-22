@@ -1,15 +1,14 @@
 #ifndef HeterogeneousCore_SYCLCore_ESProduct_h
 #define HeterogeneousCore_SYCLCore_ESProduct_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <atomic>
 #include <cassert>
 #include <mutex>
 #include <vector>
 
+#include <CL/sycl.hpp>
+
 #include "SYCLCore/EventCache.h"
-#include "SYCLCore/cudaCheck.h"
 #include "SYCLCore/deviceCount.h"
 #include "SYCLCore/currentDevice.h"
 #include "SYCLCore/eventWorkHasCompleted.h"
@@ -62,7 +61,7 @@ namespace cms {
               // wait on the CUDA stream and return the value. Subsequent
               // work queued on the stream will wait for the event to
               // occur (i.e. transfer to finish).
-              cudaCheck((data.m_event.get().wait(), 0), "Failed to make a stream to wait for an event");
+              data.m_event.get().wait();
             }
             // else: filling is still going on. But for the same CUDA
             // stream (which would be a bit strange but fine), we can just

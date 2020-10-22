@@ -1,9 +1,9 @@
 #ifndef HeterogeneousCore_CUDAUtilities_cudastdAlgorithm_h
 #define HeterogeneousCore_CUDAUtilities_cudastdAlgorithm_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <utility>
+
+#include <CL/sycl.hpp>
 
 // reimplementation of std algorithms able to compile with CUDA and run on GPUs,
 // mostly by declaringthem constexpr

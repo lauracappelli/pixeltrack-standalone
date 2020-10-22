@@ -1,17 +1,17 @@
 #ifndef RecoLocalTracker_SiPixelClusterizer_plugins_SiPixelRawToClusterGPUKernel_h
 #define RecoLocalTracker_SiPixelClusterizer_plugins_SiPixelRawToClusterGPUKernel_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <algorithm>
 
-#include "SYCLDataFormats/SiPixelDigisCUDA.h"
-#include "SYCLDataFormats/SiPixelDigiErrorsCUDA.h"
-#include "SYCLDataFormats/SiPixelClustersCUDA.h"
-#include "SYCLCore/GPUSimpleVector.h"
-#include "SYCLCore/host_unique_ptr.h"
-#include "SYCLCore/host_noncached_unique_ptr.h"
+#include <CL/sycl.hpp>
+
 #include "DataFormats/PixelErrors.h"
+#include "SYCLCore/GPUSimpleVector.h"
+#include "SYCLCore/host_noncached_unique_ptr.h"
+#include "SYCLCore/host_unique_ptr.h"
+#include "SYCLDataFormats/SiPixelClustersCUDA.h"
+#include "SYCLDataFormats/SiPixelDigiErrorsCUDA.h"
+#include "SYCLDataFormats/SiPixelDigisCUDA.h"
 
 struct SiPixelFedCablingMapGPU;
 class SiPixelGainForHLTonGPU;

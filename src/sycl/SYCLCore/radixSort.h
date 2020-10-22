@@ -1,11 +1,10 @@
 #ifndef HeterogeneousCoreCUDAUtilities_radixSort_H
 #define HeterogeneousCoreCUDAUtilities_radixSort_H
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
+#include <cassert>
 #include <cstdint>
 
-#include "SYCLCore/cuda_assert.h"
+#include <CL/sycl.hpp>
 
 template <typename T>
 inline void dummyReorder(T const *a, uint16_t *ind, uint16_t *ind2, uint32_t size) {}
@@ -83,17 +82,17 @@ inline void reorderFloat(
 template <typename T,  // shall be interger
           int NS,      // number of significant bytes to use in sorting
           typename RF>
-void __dpct_inline__ radixSortImpl(T const *__restrict__ a,
-                                   uint16_t *ind,
-                                   uint16_t *ind2,
-                                   uint32_t size,
-                                   RF reorder,
-                                   sycl::nd_item<3> item_ct1,
-                                   int32_t *c,
-                                   int32_t *ct,
-                                   int32_t *cu,
-                                   int *ibs,
-                                   int *p) {
+inline __attribute__((always_inline)) void radixSortImpl(T const *__restrict__ a,
+                                                         uint16_t *ind,
+                                                         uint16_t *ind2,
+                                                         uint32_t size,
+                                                         RF reorder,
+                                                         sycl::nd_item<3> item_ct1,
+                                                         int32_t *c,
+                                                         int32_t *ct,
+                                                         int32_t *cu,
+                                                         int *ibs,
+                                                         int *p) {
   constexpr int d = 8, w = 8 * sizeof(T);
   constexpr int sb = 1 << d;
   constexpr int ps = int(sizeof(T)) - NS;
@@ -229,64 +228,64 @@ void __dpct_inline__ radixSortImpl(T const *__restrict__ a,
 template <typename T,
           int NS = sizeof(T),  // number of significant bytes to use in sorting
           typename std::enable_if<std::is_unsigned<T>::value, T>::type * = nullptr>
-void __dpct_inline__ radixSort(T const *a,
-                               uint16_t *ind,
-                               uint16_t *ind2,
-                               uint32_t size,
-                               sycl::nd_item<3> item_ct1,
-                               int32_t *c,
-                               int32_t *ct,
-                               int32_t *cu,
-                               int *ibs,
-                               int *p) {
+inline __attribute__((always_inline)) void radixSort(T const *a,
+                                                     uint16_t *ind,
+                                                     uint16_t *ind2,
+                                                     uint32_t size,
+                                                     sycl::nd_item<3> item_ct1,
+                                                     int32_t *c,
+                                                     int32_t *ct,
+                                                     int32_t *cu,
+                                                     int *ibs,
+                                                     int *p) {
   radixSortImpl<T, NS>(a, ind, ind2, size, dummyReorder<T>, item_ct1, c, ct, cu, ibs, p);
 }
 
 template <typename T,
           int NS = sizeof(T),  // number of significant bytes to use in sorting
           typename std::enable_if<std::is_integral<T>::value && std::is_signed<T>::value, T>::type * = nullptr>
-void __dpct_inline__ radixSort(T const *a,
-                               uint16_t *ind,
-                               uint16_t *ind2,
-                               uint32_t size,
-                               sycl::nd_item<3> item_ct1,
-                               int32_t *c,
-                               int32_t *ct,
-                               int32_t *cu,
-                               int *ibs,
-                               int *p) {
+inline __attribute__((always_inline)) void radixSort(T const *a,
+                                                     uint16_t *ind,
+                                                     uint16_t *ind2,
+                                                     uint32_t size,
+                                                     sycl::nd_item<3> item_ct1,
+                                                     int32_t *c,
+                                                     int32_t *ct,
+                                                     int32_t *cu,
+                                                     int *ibs,
+                                                     int *p) {
   radixSortImpl<T, NS>(a, ind, ind2, size, reorderSigned<T>, item_ct1, c, ct, cu, ibs, p);
 }
 
 template <typename T,
           int NS = sizeof(T),  // number of significant bytes to use in sorting
           typename std::enable_if<std::is_floating_point<T>::value, T>::type * = nullptr>
-void __dpct_inline__ radixSort(T const *a,
-                               uint16_t *ind,
-                               uint16_t *ind2,
-                               uint32_t size,
-                               sycl::nd_item<3> item_ct1,
-                               int32_t *c,
-                               int32_t *ct,
-                               int32_t *cu,
-                               int *ibs,
-                               int *p) {
+inline __attribute__((always_inline)) void radixSort(T const *a,
+                                                     uint16_t *ind,
+                                                     uint16_t *ind2,
+                                                     uint32_t size,
+                                                     sycl::nd_item<3> item_ct1,
+                                                     int32_t *c,
+                                                     int32_t *ct,
+                                                     int32_t *cu,
+                                                     int *ibs,
+                                                     int *p) {
   using I = int;
   radixSortImpl<I, NS>((I const *)(a), ind, ind2, size, reorderFloat<I>, item_ct1, c, ct, cu, ibs, p);
 }
 
 template <typename T, int NS = sizeof(T)>
-void __dpct_inline__ radixSortMulti(T const *v,
-                                    uint16_t *index,
-                                    uint32_t const *offsets,
-                                    uint16_t *workspace,
-                                    sycl::nd_item<3> item_ct1,
-                                    uint8_t *dpct_local,
-                                    int32_t *c,
-                                    int32_t *ct,
-                                    int32_t *cu,
-                                    int *ibs,
-                                    int *p) {
+inline __attribute__((always_inline)) void radixSortMulti(T const *v,
+                                                          uint16_t *index,
+                                                          uint32_t const *offsets,
+                                                          uint16_t *workspace,
+                                                          sycl::nd_item<3> item_ct1,
+                                                          uint8_t *dpct_local,
+                                                          int32_t *c,
+                                                          int32_t *ct,
+                                                          int32_t *cu,
+                                                          int *ibs,
+                                                          int *p) {
   auto ws = (uint16_t *)dpct_local;
 
   auto a = v + offsets[item_ct1.get_group(2)];

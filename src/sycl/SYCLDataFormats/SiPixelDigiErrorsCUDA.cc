@@ -1,13 +1,12 @@
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
-#include "SYCLDataFormats/SiPixelDigiErrorsCUDA.h"
+#include <cassert>
 
+#include <CL/sycl.hpp>
+
+#include "SYCLCore/copyAsync.h"
 #include "SYCLCore/device_unique_ptr.h"
 #include "SYCLCore/host_unique_ptr.h"
-#include "SYCLCore/copyAsync.h"
 #include "SYCLCore/memsetAsync.h"
-
-#include <cassert>
+#include "SYCLDataFormats/SiPixelDigiErrorsCUDA.h"
 
 SiPixelDigiErrorsCUDA::SiPixelDigiErrorsCUDA(size_t maxFedWords, PixelFormatterErrors errors, sycl::queue *stream)
     : formatterErrors_h(std::move(errors)) {

@@ -1,5 +1,3 @@
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <algorithm>
 #include <cassert>
 #include <iostream>
@@ -8,9 +6,11 @@
 #include <array>
 #include <memory>
 
+#include <CL/sycl.hpp>
+#include <dpct/dpct.hpp>
+
 #ifdef CL_SYCL_LANGUAGE_VERSION
 #include "SYCLCore/device_unique_ptr.h"
-#include "SYCLCore/cudaCheck.h"
 #include "SYCLCore/currentDevice.h"
 #endif
 
@@ -183,10 +183,7 @@ int main() {
   auto sa_d = cms::sycltools::make_device_unique<SmallAssoc[]>(1, nullptr);
   auto ws_d = cms::sycltools::make_device_unique<uint8_t[]>(Assoc::wsSize(), nullptr);
 
-  /*
-  DPCT1003:235: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-  */
-  cudaCheck((dpct::get_default_queue().memcpy(v_d.get(), tr.data(), N * sizeof(std::array<uint16_t, 4>)).wait(), 0));
+  dpct::get_default_queue().memcpy(v_d.get(), tr.data(), N * sizeof(std::array<uint16_t, 4>)).wait();
 #else
   auto a_d = std::make_unique<Assoc>();
   auto sa_d = std::make_unique<SmallAssoc>();
@@ -239,10 +236,7 @@ int main() {
   Assoc la;
 
 #ifdef CL_SYCL_LANGUAGE_VERSION
-  /*
-  DPCT1003:238: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-  */
-  cudaCheck((dpct::get_default_queue().memcpy(&la, a_d.get(), sizeof(Assoc)).wait(), 0));
+  dpct::get_default_queue().memcpy(&la, a_d.get(), sizeof(Assoc)).wait();
 #else
   memcpy(&la, a_d.get(), sizeof(Assoc));  // not required, easier
 #endif
@@ -268,14 +262,8 @@ int main() {
   AtomicPairCounter dc(0);
 
 #ifdef CL_SYCL_LANGUAGE_VERSION
-  /*
-  DPCT1003:239: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-  */
-  cudaCheck((dc_d = sycl::malloc_device<AtomicPairCounter>(1, dpct::get_default_queue()), 0));
-  /*
-  DPCT1003:240: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-  */
-  cudaCheck((dpct::get_default_queue().memset(dc_d, 0, sizeof(AtomicPairCounter)).wait(), 0));
+  dc_d = sycl::malloc_device<AtomicPairCounter>(1, dpct::get_default_queue());
+  dpct::get_default_queue().memset(dc_d, 0, sizeof(AtomicPairCounter)).wait();
   nBlocks = (N + nThreads - 1) / nThreads;
   /*
   DPCT1049:241: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
@@ -310,16 +298,16 @@ int main() {
   /*
   DPCT1003:243: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
   */
-  cudaCheck((dpct::get_default_queue().memcpy(&la, a_d.get(), sizeof(Assoc)).wait(), 0));
+  dpct::get_default_queue().memcpy(&la, a_d.get(), sizeof(Assoc)).wait();
   /*
   DPCT1003:244: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
   */
-  cudaCheck((dpct::get_default_queue().memcpy(&dc, dc_d, sizeof(AtomicPairCounter)).wait(), 0));
+  dpct::get_default_queue().memcpy(&dc, dc_d, sizeof(AtomicPairCounter)).wait();
 
   /*
   DPCT1003:245: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
   */
-  cudaCheck((dpct::get_default_queue().memset(dc_d, 0, sizeof(AtomicPairCounter)).wait(), 0));
+  dpct::get_default_queue().memset(dc_d, 0, sizeof(AtomicPairCounter)).wait();
   /*
   DPCT1049:246: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
   */
@@ -440,14 +428,7 @@ int main() {
         [=](sycl::nd_item<3> item_ct1) { verifyMulti(m1_d_get_ct0, m2_d_get_ct1, item_ct1); });
   });
 
-  /*
-  DPCT1010:250: SYCL uses exceptions to report errors and does not use the error codes. The call was replaced with 0. You need to rewrite this code.
-  */
-  cudaCheck(0);
-  /*
-  DPCT1003:251: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-  */
-  cudaCheck((dpct::get_current_device().queues_wait_and_throw(), 0));
+  dpct::get_current_device().queues_wait_and_throw();
 #else
   countMulti(v_d, m1_d.get(), N);
   countMultiLocal(v_d, m2_d.get(), N);

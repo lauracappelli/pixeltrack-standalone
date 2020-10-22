@@ -2,7 +2,7 @@
 #define SYCLDataFormats_SiPixelDigi_interface_SiPixelDigiErrorsCUDA_h
 
 #include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
+
 #include "DataFormats/PixelErrors.h"
 #include "SYCLCore/device_unique_ptr.h"
 #include "SYCLCore/host_unique_ptr.h"

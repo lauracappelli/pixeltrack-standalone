@@ -1,15 +1,15 @@
+#include <fstream>
+
 #include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
-#include "SYCLCore/Product.h"
-#include "SYCLDataFormats/BeamSpotCUDA.h"
-#include "Framework/EventSetup.h"
-#include "Framework/Event.h"
-#include "Framework/PluginFactory.h"
+
 #include "Framework/EDProducer.h"
+#include "Framework/Event.h"
+#include "Framework/EventSetup.h"
+#include "Framework/PluginFactory.h"
+#include "SYCLCore/Product.h"
 #include "SYCLCore/ScopedContext.h"
 #include "SYCLCore/host_noncached_unique_ptr.h"
-
-#include <fstream>
+#include "SYCLDataFormats/BeamSpotCUDA.h"
 
 class BeamSpotToCUDA : public edm::EDProducer {
 public:

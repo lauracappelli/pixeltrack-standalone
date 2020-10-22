@@ -2,7 +2,6 @@
 #include <dpct/dpct.hpp>
 #include "SYCLDataFormats/TrackingRecHit2DCUDA.h"
 #include "SYCLCore/copyAsync.h"
-#include "SYCLCore/cudaCheck.h"
 
 namespace testTrackingRecHit2D {
 
@@ -57,7 +56,7 @@ int main() {
   /*
   DPCT1025:58: The SYCL queue is created ignoring the flag/priority options.
   */
-  cudaCheck((stream = dpct::get_current_device().create_queue(true), 0));
+  stream = dpct::get_current_device().create_queue(true);
 
   // inner scope to deallocate memory before destroying the stream
   {
@@ -67,10 +66,7 @@ int main() {
     testTrackingRecHit2D::runKernels(tkhit.view());
   }
 
-  /*
-  DPCT1003:59: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-  */
-  cudaCheck((dpct::get_current_device().destroy_queue(stream), 0));
+  dpct::get_current_device().destroy_queue(stream);
 
   return 0;
 }

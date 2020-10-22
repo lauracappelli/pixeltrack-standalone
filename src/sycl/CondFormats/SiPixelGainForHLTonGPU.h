@@ -1,13 +1,12 @@
 #ifndef CondFormats_SiPixelObjects_SiPixelGainForHLTonGPU_h
 #define CondFormats_SiPixelObjects_SiPixelGainForHLTonGPU_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <tuple>
 
-#include "SYCLCore/cuda_assert.h"
+#include <CL/sycl.hpp>
 
 struct SiPixelGainForHLTonGPU_DecodingStructure {
   uint8_t gain;

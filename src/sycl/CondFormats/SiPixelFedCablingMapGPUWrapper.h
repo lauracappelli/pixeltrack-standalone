@@ -1,14 +1,14 @@
 #ifndef RecoLocalTracker_SiPixelClusterizer_SiPixelFedCablingMapGPUWrapper_h
 #define RecoLocalTracker_SiPixelClusterizer_SiPixelFedCablingMapGPUWrapper_h
 
+#include <set>
+
 #include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
+
 #include "SYCLCore/ESProduct.h"
 #include "SYCLCore/CUDAHostAllocator.h"
 #include "SYCLCore/device_unique_ptr.h"
 #include "CondFormats/SiPixelFedCablingMapGPU.h"
-
-#include <set>
 
 class SiPixelFedCablingMapGPUWrapper {
 public:

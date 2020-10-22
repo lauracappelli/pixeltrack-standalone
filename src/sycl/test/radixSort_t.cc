@@ -1,5 +1,3 @@
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <algorithm>
 #include <cassert>
 #include <chrono>
@@ -10,8 +8,10 @@
 #include <random>
 #include <set>
 
+#include <CL/sycl.hpp>
+#include <dpct/dpct.hpp>
+
 #include "SYCLCore/device_unique_ptr.h"
-#include "SYCLCore/cudaCheck.h"
 #include "SYCLCore/launch.h"
 #include "SYCLCore/radixSort.h"
 
@@ -95,14 +95,8 @@ void go(bool useShared) {
     auto ws_d = cms::sycltools::make_device_unique<uint16_t[]>(N, nullptr);
     auto off_d = cms::sycltools::make_device_unique<uint32_t[]>(blocks + 1, nullptr);
 
-    /*
-    DPCT1003:208: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memcpy(v_d.get(), v, N * sizeof(T)).wait(), 0));
-    /*
-    DPCT1003:209: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memcpy(off_d.get(), offsets, 4 * (blocks + 1)).wait(), 0));
+    dpct::get_default_queue().memcpy(v_d.get(), v, N * sizeof(T)).wait();
+    dpct::get_default_queue().memcpy(off_d.get(), offsets, 4 * (blocks + 1)).wait();
 
     if (i < 2)
       std::cout << "lauch for " << offsets[blocks] << std::endl;
@@ -121,10 +115,7 @@ void go(bool useShared) {
     if (i == 0)
       std::cout << "done for " << offsets[blocks] << std::endl;
 
-    /*
-    DPCT1003:210: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memcpy(ind, ind_d.get(), 2 * N).wait(), 0));
+    dpct::get_default_queue().memcpy(ind, ind_d.get(), 2 * N).wait();
 
     delta += (std::chrono::high_resolution_clock::now() - start);
 

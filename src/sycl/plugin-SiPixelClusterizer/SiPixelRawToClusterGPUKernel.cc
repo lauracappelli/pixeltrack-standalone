@@ -7,8 +7,6 @@
 **/
 
 // C++ includes
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <cassert>
 #include <chrono>
 #include <cstdio>
@@ -19,14 +17,14 @@
 #include <iostream>
 #include <string>
 
-// CUDA includes
+// SYCL includes
+#include <CL/sycl.hpp>
 
 // cub includes
 #include <cub/cub.cuh>
 
 // CMSSW includes
 #include "SYCLDataFormats/gpuClusteringConstants.h"
-#include "SYCLCore/cudaCheck.h"
 #include "SYCLCore/device_unique_ptr.h"
 #include "SYCLCore/host_unique_ptr.h"
 
@@ -594,14 +592,8 @@ namespace pixelgpudetails {
       auto word_d = cms::sycltools::make_device_unique<uint32_t[]>(wordCounter, stream);
       auto fedId_d = cms::sycltools::make_device_unique<uint8_t[]>(wordCounter, stream);
 
-      /*
-      DPCT1003:192: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-      */
-      cudaCheck((stream->memcpy(word_d.get(), wordFed.word(), wordCounter * sizeof(uint32_t)), 0));
-      /*
-      DPCT1003:193: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-      */
-      cudaCheck((stream->memcpy(fedId_d.get(), wordFed.fedId(), wordCounter * sizeof(uint8_t) / 2), 0));
+      stream->memcpy(word_d.get(), wordFed.word(), wordCounter * sizeof(uint32_t));
+      stream->memcpy(fedId_d.get(), wordFed.fedId(), wordCounter * sizeof(uint8_t) / 2);
 
       // Launch rawToDigi kernel
       /*
@@ -642,13 +634,8 @@ namespace pixelgpudetails {
                                             stream_ct1);
                          });
       });
-      /*
-      DPCT1010:195: SYCL uses exceptions to report errors and does not use the error codes. The call was replaced with 0. You need to rewrite this code.
-      */
-      cudaCheck(0);
 #ifdef GPU_DEBUG
       cudaDeviceSynchronize();
-      cudaCheck(cudaGetLastError());
 #endif
 
       if (includeErrors) {
@@ -694,13 +681,8 @@ namespace pixelgpudetails {
                                       stream_ct1);
                          });
       });
-      /*
-      DPCT1010:197: SYCL uses exceptions to report errors and does not use the error codes. The call was replaced with 0. You need to rewrite this code.
-      */
-      cudaCheck(0);
 #ifdef GPU_DEBUG
       cudaDeviceSynchronize();
-      cudaCheck(cudaGetLastError());
 #endif
 
 #ifdef GPU_DEBUG
@@ -724,16 +706,9 @@ namespace pixelgpudetails {
                   digis_d_c_moduleInd_ct0, clusters_d_moduleStart_ct1, digis_d_clus_ct2, wordCounter, item_ct1);
             });
       });
-      /*
-      DPCT1010:199: SYCL uses exceptions to report errors and does not use the error codes. The call was replaced with 0. You need to rewrite this code.
-      */
-      cudaCheck(0);
 
       // read the number of modules into a data member, used by getProduct())
-      /*
-      DPCT1003:200: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-      */
-      cudaCheck((stream->memcpy(&(nModules_Clusters_h[0]), clusters_d.moduleStart(), sizeof(uint32_t)), 0));
+      stream->memcpy(&(nModules_Clusters_h[0]), clusters_d.moduleStart(), sizeof(uint32_t));
 
       threadsPerBlock = 256;
       blocks = MaxNumModules;
@@ -780,13 +755,8 @@ namespace pixelgpudetails {
                                     foundClusters_acc_ct1.get_pointer());
                          });
       });
-      /*
-      DPCT1010:202: SYCL uses exceptions to report errors and does not use the error codes. The call was replaced with 0. You need to rewrite this code.
-      */
-      cudaCheck(0);
 #ifdef GPU_DEBUG
       cudaDeviceSynchronize();
-      cudaCheck(cudaGetLastError());
 #endif
 
       // apply charge cut
@@ -830,10 +800,6 @@ namespace pixelgpudetails {
                                             ws_acc_ct1.get_pointer());
                          });
       });
-      /*
-      DPCT1010:204: SYCL uses exceptions to report errors and does not use the error codes. The call was replaced with 0. You need to rewrite this code.
-      */
-      cudaCheck(0);
 
       // count the module start indices already here (instead of
       // rechits) so that the number of clusters/hits can be made
@@ -859,17 +825,11 @@ namespace pixelgpudetails {
       });
 
       // last element holds the number of all clusters
-      /*
-      DPCT1003:206: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-      */
-      cudaCheck((
-          stream->memcpy(
-              &(nModules_Clusters_h[1]), clusters_d.clusModuleStart() + gpuClustering::MaxNumModules, sizeof(uint32_t)),
-          0));
+      stream->memcpy(
+          &(nModules_Clusters_h[1]), clusters_d.clusModuleStart() + gpuClustering::MaxNumModules, sizeof(uint32_t));
 
 #ifdef GPU_DEBUG
       cudaDeviceSynchronize();
-      cudaCheck(cudaGetLastError());
 #endif
 
     }  // end clusterizer scope

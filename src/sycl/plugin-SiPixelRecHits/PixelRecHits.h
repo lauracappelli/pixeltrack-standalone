@@ -1,9 +1,9 @@
 #ifndef RecoLocalTracker_SiPixelRecHits_plugins_PixelRecHits_h
 #define RecoLocalTracker_SiPixelRecHits_plugins_PixelRecHits_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <cstdint>
+
+#include <CL/sycl.hpp>
 
 #include "SYCLDataFormats/BeamSpotCUDA.h"
 #include "SYCLDataFormats/SiPixelClustersCUDA.h"

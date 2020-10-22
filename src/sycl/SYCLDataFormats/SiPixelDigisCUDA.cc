@@ -1,10 +1,9 @@
 #include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
-#include "SYCLDataFormats/SiPixelDigisCUDA.h"
 
+#include "SYCLCore/copyAsync.h"
 #include "SYCLCore/device_unique_ptr.h"
 #include "SYCLCore/host_unique_ptr.h"
-#include "SYCLCore/copyAsync.h"
+#include "SYCLDataFormats/SiPixelDigisCUDA.h"
 
 SiPixelDigisCUDA::SiPixelDigisCUDA(size_t maxFedWords, sycl::queue *stream) {
   xx_d = cms::sycltools::make_device_unique<uint16_t[]>(maxFedWords, stream);

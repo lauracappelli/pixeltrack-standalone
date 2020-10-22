@@ -1,12 +1,12 @@
 #ifndef RecoLocalTracker_SiPixelClusterizer_plugins_gpuClusterChargeCut_h
 #define RecoLocalTracker_SiPixelClusterizer_plugins_gpuClusterChargeCut_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
 
-#include "SYCLCore/cuda_assert.h"
+#include <CL/sycl.hpp>
+
 #include "SYCLCore/prefixScan.h"
 
 #include "gpuClusteringConstants.h"

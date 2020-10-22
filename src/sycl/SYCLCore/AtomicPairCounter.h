@@ -1,9 +1,9 @@
 #ifndef HeterogeneousCore_CUDAUtilities_interface_AtomicPairCounter_h
 #define HeterogeneousCore_CUDAUtilities_interface_AtomicPairCounter_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <cstdint>
+
+#include <CL/sycl.hpp>
 
 #include "SYCLCore/cudaCompat.h"
 
@@ -34,7 +34,7 @@ public:
   Counters get() const { return counter.counters; }
 
   // increment n by 1 and m by i.  return previous value
-  __dpct_inline__ Counters add(uint32_t i) {
+  inline __attribute__((always_inline)) Counters add(uint32_t i) {
     c_type c = i;
     c += incr;
     Atomic2 ret;

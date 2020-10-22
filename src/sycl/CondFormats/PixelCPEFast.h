@@ -1,9 +1,9 @@
 #ifndef RecoLocalTracker_SiPixelRecHits_PixelCPEFast_h
 #define RecoLocalTracker_SiPixelRecHits_PixelCPEFast_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <utility>
+
+#include <CL/sycl.hpp>
 
 #include "SYCLCore/ESProduct.h"
 #include "SYCLCore/CUDAHostAllocator.h"

@@ -1,17 +1,16 @@
 #include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 
-#include "SYCLDataFormats/BeamSpotCUDA.h"
+#include "CondFormats/PixelCPEFast.h"
+#include "Framework/EDProducer.h"
+#include "Framework/Event.h"
+#include "Framework/EventSetup.h"
+#include "Framework/PluginFactory.h"
 #include "SYCLCore/Product.h"
+#include "SYCLCore/ScopedContext.h"
+#include "SYCLDataFormats/BeamSpotCUDA.h"
 #include "SYCLDataFormats/SiPixelClustersCUDA.h"
 #include "SYCLDataFormats/SiPixelDigisCUDA.h"
 #include "SYCLDataFormats/TrackingRecHit2DCUDA.h"
-#include "Framework/EventSetup.h"
-#include "Framework/Event.h"
-#include "Framework/PluginFactory.h"
-#include "Framework/EDProducer.h"
-#include "SYCLCore/ScopedContext.h"
-#include "CondFormats/PixelCPEFast.h"
 
 #include "PixelRecHits.h"  // TODO : spit product from kernel
 

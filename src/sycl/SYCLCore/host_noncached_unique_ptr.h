@@ -1,11 +1,10 @@
 #ifndef HeterogeneousCore_CUDAUtilities_interface_host_noncached_unique_ptr_h
 #define HeterogeneousCore_CUDAUtilities_interface_host_noncached_unique_ptr_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <memory>
 
-#include "SYCLCore/cudaCheck.h"
+#include <CL/sycl.hpp>
+#include <dpct/dpct.hpp>
 
 namespace cms {
   namespace sycltools {
@@ -15,10 +14,7 @@ namespace cms {
           // Additional layer of types to distinguish from host::unique_ptr
           class HostDeleter {
           public:
-            /*
-            DPCT1003:62: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-            */
-            void operator()(void *ptr) { cudaCheck((sycl::free(ptr, dpct::get_default_queue()), 0)); }
+            void operator()(void *ptr) { sycl::free(ptr, dpct::get_default_queue()); }
           };
         }  // namespace impl
 
@@ -54,11 +50,7 @@ namespace cms {
         unsigned int flags = 0) {
       static_assert(std::is_trivially_constructible<T>::value,
                     "Allocating with non-trivial constructor on the pinned host memory is not supported");
-      void *mem;
-      /*
-      DPCT1003:63: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-      */
-      cudaCheck((mem = (void *)sycl::malloc_host(sizeof(T), dpct::get_default_queue()), 0));
+      void *mem = (void *)sycl::malloc_host(sizeof(T), dpct::get_default_queue());
       return typename host::noncached::impl::make_host_unique_selector<T>::non_array(reinterpret_cast<T *>(mem));
     }
 
@@ -72,11 +64,7 @@ namespace cms {
       using element_type = typename std::remove_extent<T>::type;
       static_assert(std::is_trivially_constructible<element_type>::value,
                     "Allocating with non-trivial constructor on the pinned host memory is not supported");
-      void *mem;
-      /*
-      DPCT1003:64: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-      */
-      cudaCheck((mem = (void *)sycl::malloc_host(n * sizeof(element_type), dpct::get_default_queue()), 0));
+      void *mem = (void *)sycl::malloc_host(n * sizeof(element_type), dpct::get_default_queue());
       return typename host::noncached::impl::make_host_unique_selector<T>::unbounded_array(
           reinterpret_cast<element_type *>(mem));
     }

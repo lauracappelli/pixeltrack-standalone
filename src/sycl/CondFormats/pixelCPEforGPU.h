@@ -1,18 +1,17 @@
 #ifndef RecoLocalTracker_SiPixelRecHits_pixelCPEforGPU_h
 #define RecoLocalTracker_SiPixelRecHits_pixelCPEforGPU_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <iterator>
 
-#include "SYCLDataFormats/gpuClusteringConstants.h"
+#include <CL/sycl.hpp>
+
 #include "DataFormats/SOARotation.h"
 #include "Geometry/phase1PixelTopology.h"
 #include "SYCLCore/cudaCompat.h"
-#include "SYCLCore/cuda_cxx17.h"
+#include "SYCLDataFormats/gpuClusteringConstants.h"
 
 namespace pixelCPEforGPU {
 

@@ -1,5 +1,5 @@
 #include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
+
 #include "SYCLCore/cudaCompat.h"
 
 namespace sycltoolsCompat {

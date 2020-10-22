@@ -2,7 +2,7 @@
 #define CalibTracker_SiPixelESProducers_interface_SiPixelGainCalibrationForHLTGPU_h
 
 #include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
+
 #include "SYCLCore/ESProduct.h"
 
 class SiPixelGainForHLTonGPU;

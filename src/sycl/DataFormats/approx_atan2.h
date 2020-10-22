@@ -27,12 +27,12 @@ for deg from 3 to 11 do begin
 end;
 */
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
-#include <cstdint>
-#include <cmath>
-#include <limits>
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <limits>
+
+#include <CL/sycl.hpp>
 
 // float
 

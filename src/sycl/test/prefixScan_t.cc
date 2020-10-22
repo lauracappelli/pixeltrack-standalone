@@ -1,10 +1,9 @@
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <iostream>
 
 #include <cub/cub.cuh>
+#include <CL/sycl.hpp>
+#include <dpct/dpct.hpp>
 
-#include "SYCLCore/cudaCheck.h"
 #include "SYCLCore/prefixScan.h"
 
 template <typename T>
@@ -175,17 +174,8 @@ int main() try {
     uint32_t *d_out1;
     uint32_t *d_out2;
 
-    /*
-    DPCT1003:83: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
     ((d_in = sycl::malloc_device<uint32_t>(num_items * sizeof(uint32_t), dpct::get_default_queue()), 0));
-    /*
-    DPCT1003:84: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
     ((d_out1 = sycl::malloc_device<uint32_t>(num_items * sizeof(uint32_t), dpct::get_default_queue()), 0));
-    /*
-    DPCT1003:85: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
     ((d_out2 = sycl::malloc_device<uint32_t>(num_items * sizeof(uint32_t), dpct::get_default_queue()), 0));
 
     auto nthreads = 256;
@@ -204,14 +194,8 @@ int main() try {
 
     // the block counter
     int32_t *d_pc;
-    /*
-    DPCT1003:87: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((d_pc = sycl::malloc_device<int32_t>(1, dpct::get_default_queue()), 0));
-    /*
-    DPCT1003:88: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memset(d_pc, 0, 4).wait(), 0));
+    d_pc = sycl::malloc_device<int32_t>(1, dpct::get_default_queue());
+    dpct::get_default_queue().memset(d_pc, 0, 4).wait();
 
     nthreads = 1024;
     nblocks = (num_items + nthreads - 1) / nthreads;
@@ -262,10 +246,7 @@ int main() try {
     // Allocate temporary storage for inclusive prefix sum
     // fake larger ws already available
     temp_storage_bytes *= 8;
-    /*
-    DPCT1003:91: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((d_temp_storage = (void *)sycl::malloc_device(temp_storage_bytes, dpct::get_default_queue()), 0));
+    d_temp_storage = (void *)sycl::malloc_device(temp_storage_bytes, dpct::get_default_queue());
     std::cout << "temp storage " << temp_storage_bytes << std::endl;
     // Run inclusive prefix sum
     CubDebugExit(cub::DeviceScan::InclusiveSum(d_temp_storage, temp_storage_bytes, d_in, d_out2, num_items));

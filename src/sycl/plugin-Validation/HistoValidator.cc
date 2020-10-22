@@ -59,14 +59,12 @@ std::map<std::string, SimpleAtomicHisto> HistoValidator::histos = {
     {"hit_gr", SimpleAtomicHisto(200, 0, 20)},
     {"hit_charge", SimpleAtomicHisto(400, 0, 4e6)},
     {"hit_sizex", SimpleAtomicHisto(800, 0, 800)},
-    {"hit_sizey", SimpleAtomicHisto(800, 0, 800)}
-};
+    {"hit_sizey", SimpleAtomicHisto(800, 0, 800)}};
 
 HistoValidator::HistoValidator(edm::ProductRegistry& reg)
     : digiToken_(reg.consumes<cms::sycltools::Product<SiPixelDigisCUDA>>()),
       clusterToken_(reg.consumes<cms::sycltools::Product<SiPixelClustersCUDA>>()),
-      hitToken_(reg.consumes<cms::sycltools::Product<TrackingRecHit2DCUDA>>())
-{}
+      hitToken_(reg.consumes<cms::sycltools::Product<TrackingRecHit2DCUDA>>()) {}
 
 void HistoValidator::acquire(const edm::Event& iEvent,
                              const edm::EventSetup& iSetup,
@@ -83,8 +81,8 @@ void HistoValidator::acquire(const edm::Event& iEvent,
 
   nClusters = clusters.nClusters();
   h_clusInModule = cms::sycltools::make_host_unique<uint32_t[]>(nModules, ctx.stream());
-  cudaCheck(cudaMemcpyAsync(
-      h_clusInModule.get(), clusters.clusInModule(), sizeof(uint32_t) * nModules, cudaMemcpyDefault, ctx.stream()));
+  cudaMemcpyAsync(
+      h_clusInModule.get(), clusters.clusInModule(), sizeof(uint32_t) * nModules, cudaMemcpyDefault, ctx.stream());
 
   nHits = hits.nHits();
   h_localCoord = hits.localCoordToHostAsync(ctx.stream());

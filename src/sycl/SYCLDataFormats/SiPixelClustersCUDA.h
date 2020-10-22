@@ -2,7 +2,7 @@
 #define SYCLDataFormats_SiPixelCluster_interface_SiPixelClustersCUDA_h
 
 #include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
+
 #include "SYCLCore/device_unique_ptr.h"
 #include "SYCLCore/host_unique_ptr.h"
 #include "SYCLCore/cudaCompat.h"
@@ -44,19 +44,19 @@ public:
     /*
     DPCT1026:10: The call to __ldg was removed, because there is no correspoinding API in DPC++.
     */
-    __dpct_inline__ uint32_t moduleStart(int i) const { return *(moduleStart_ + i); }
+    inline __attribute__((always_inline)) uint32_t moduleStart(int i) const { return *(moduleStart_ + i); }
     /*
     DPCT1026:11: The call to __ldg was removed, because there is no correspoinding API in DPC++.
     */
-    __dpct_inline__ uint32_t clusInModule(int i) const { return *(clusInModule_ + i); }
+    inline __attribute__((always_inline)) uint32_t clusInModule(int i) const { return *(clusInModule_ + i); }
     /*
     DPCT1026:12: The call to __ldg was removed, because there is no correspoinding API in DPC++.
     */
-    __dpct_inline__ uint32_t moduleId(int i) const { return *(moduleId_ + i); }
+    inline __attribute__((always_inline)) uint32_t moduleId(int i) const { return *(moduleId_ + i); }
     /*
     DPCT1026:13: The call to __ldg was removed, because there is no correspoinding API in DPC++.
     */
-    __dpct_inline__ uint32_t clusModuleStart(int i) const { return *(clusModuleStart_ + i); }
+    inline __attribute__((always_inline)) uint32_t clusModuleStart(int i) const { return *(clusModuleStart_ + i); }
 
     friend SiPixelClustersCUDA;
 

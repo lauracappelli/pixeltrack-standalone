@@ -1,13 +1,11 @@
 // C++ headers
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <algorithm>
 #include <numeric>
 
-// CUDA runtime
+// SYCL headers
+#include <CL/sycl.hpp>
 
 // CMSSW headers
-#include "SYCLCore/cudaCheck.h"
 #include "SYCLCore/device_unique_ptr.h"
 #include "plugin-SiPixelClusterizer/SiPixelRawToClusterGPUKernel.h"  // !
 #include "plugin-SiPixelClusterizer/gpuClusteringConstants.h"        // !
@@ -76,13 +74,8 @@ namespace pixelgpudetails {
                                    clusParams_acc_ct1.get_pointer());
                          });
       });
-    /*
-    DPCT1010:67: SYCL uses exceptions to report errors and does not use the error codes. The call was replaced with 0. You need to rewrite this code.
-    */
-    cudaCheck(0);
 #ifdef GPU_DEBUG
-    cudaDeviceSynchronize();
-    cudaCheck(cudaGetLastError());
+    stream->wait_and_throw();
 #endif
 
     // assuming full warp of threads is better than a smaller number...
@@ -95,25 +88,16 @@ namespace pixelgpudetails {
           setHitsLayerStart(clusters_d_clusModuleStart_ct0, cpeParams, hits_d_hitsLayerStart_ct2, item_ct1);
         });
       });
-      /*
-      DPCT1010:68: SYCL uses exceptions to report errors and does not use the error codes. The call was replaced with 0. You need to rewrite this code.
-      */
-      cudaCheck(0);
     }
 
     if (nHits) {
       auto hws = cms::sycltools::make_device_unique<uint8_t[]>(TrackingRecHit2DSOAView::Hist::wsSize(), stream);
       cms::sycltools::fillManyFromVector(
           hits_d.phiBinner(), hws.get(), 10, hits_d.iphi(), hits_d.hitsLayerStart(), nHits, 256, stream);
-      /*
-      DPCT1010:69: SYCL uses exceptions to report errors and does not use the error codes. The call was replaced with 0. You need to rewrite this code.
-      */
-      cudaCheck(0);
     }
 
 #ifdef GPU_DEBUG
-    cudaDeviceSynchronize();
-    cudaCheck(cudaGetLastError());
+    stream->wait_and_throw();
 #endif
 
     return hits_d;

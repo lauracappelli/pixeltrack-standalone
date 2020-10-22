@@ -2,7 +2,7 @@
 #define SYCLDataFormats_SiPixelDigi_interface_SiPixelDigisCUDA_h
 
 #include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
+
 #include "SYCLCore/device_unique_ptr.h"
 #include "SYCLCore/host_unique_ptr.h"
 #include "SYCLCore/cudaCompat.h"
@@ -62,23 +62,23 @@ public:
     /*
     DPCT1026:14: The call to __ldg was removed, because there is no correspoinding API in DPC++.
     */
-    __dpct_inline__ uint16_t xx(int i) const { return *(xx_ + i); }
+    inline __attribute__((always_inline)) uint16_t xx(int i) const { return *(xx_ + i); }
     /*
     DPCT1026:15: The call to __ldg was removed, because there is no correspoinding API in DPC++.
     */
-    __dpct_inline__ uint16_t yy(int i) const { return *(yy_ + i); }
+    inline __attribute__((always_inline)) uint16_t yy(int i) const { return *(yy_ + i); }
     /*
     DPCT1026:16: The call to __ldg was removed, because there is no correspoinding API in DPC++.
     */
-    __dpct_inline__ uint16_t adc(int i) const { return *(adc_ + i); }
+    inline __attribute__((always_inline)) uint16_t adc(int i) const { return *(adc_ + i); }
     /*
     DPCT1026:17: The call to __ldg was removed, because there is no correspoinding API in DPC++.
     */
-    __dpct_inline__ uint16_t moduleInd(int i) const { return *(moduleInd_ + i); }
+    inline __attribute__((always_inline)) uint16_t moduleInd(int i) const { return *(moduleInd_ + i); }
     /*
     DPCT1026:18: The call to __ldg was removed, because there is no correspoinding API in DPC++.
     */
-    __dpct_inline__ int32_t clus(int i) const { return *(clus_ + i); }
+    inline __attribute__((always_inline)) int32_t clus(int i) const { return *(clus_ + i); }
 
     friend class SiPixelDigisCUDA;
 

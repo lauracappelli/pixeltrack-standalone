@@ -1,17 +1,17 @@
 #ifndef RecoLocalTracker_SiPixelRecHits_plugins_gpuPixelRecHits_h
 #define RecoLocalTracker_SiPixelRecHits_plugins_gpuPixelRecHits_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <limits>
 
-#include "SYCLDataFormats/BeamSpotCUDA.h"
-#include "SYCLDataFormats/TrackingRecHit2DCUDA.h"
-#include "SYCLCore/cuda_assert.h"
+#include <CL/sycl.hpp>
+
 #include "CondFormats/pixelCPEforGPU.h"
 #include "DataFormats/approx_atan2.h"
+#include "SYCLDataFormats/BeamSpotCUDA.h"
+#include "SYCLDataFormats/TrackingRecHit2DCUDA.h"
 
 namespace gpuPixelRecHits {
 

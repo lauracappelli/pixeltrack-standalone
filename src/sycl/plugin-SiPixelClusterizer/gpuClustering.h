@@ -1,14 +1,15 @@
 #ifndef RecoLocalTracker_SiPixelClusterizer_plugins_gpuClustering_h
 #define RecoLocalTracker_SiPixelClusterizer_plugins_gpuClustering_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
 
+#include <CL/sycl.hpp>
+#include <dpct/dpct.hpp>
+
 #include "Geometry/phase1PixelTopology.h"
 #include "SYCLCore/HistoContainer.h"
-#include "SYCLCore/cuda_assert.h"
 
 #include "gpuClusteringConstants.h"
 

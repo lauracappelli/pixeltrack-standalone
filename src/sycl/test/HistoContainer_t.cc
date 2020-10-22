@@ -1,13 +1,13 @@
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <limits>
 #include <random>
 
+#include <CL/sycl.hpp>
+#include <dpct/dpct.hpp>
+
 #include "SYCLCore/device_unique_ptr.h"
-#include "SYCLCore/cudaCheck.h"
 #include "SYCLCore/HistoContainer.h"
 
 template <typename T>
@@ -19,10 +19,7 @@ void go() {
   T v[N];
   auto v_d = cms::sycltools::make_device_unique<T[]>(N, nullptr);
 
-  /*
-  DPCT1003:156: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-  */
-  cudaCheck((dpct::get_default_queue().memcpy(v_d.get(), v, N * sizeof(T)).wait(), 0));
+  dpct::get_default_queue().memcpy(v_d.get(), v, N * sizeof(T)).wait();
 
   constexpr uint32_t nParts = 10;
   constexpr uint32_t partSize = N / nParts;
@@ -60,10 +57,7 @@ void go() {
       offsets[10] = 3297 + offsets[9];
     }
 
-    /*
-    DPCT1003:157: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memcpy(off_d.get(), offsets, 4 * (nParts + 1)).wait(), 0));
+    dpct::get_default_queue().memcpy(off_d.get(), offsets, 4 * (nParts + 1)).wait();
 
     for (long long j = 0; j < N; j++)
       v[j] = rgen(eng);
@@ -73,16 +67,9 @@ void go() {
         v[j] = sizeof(T) == 1 ? 22 : 3456;
     }
 
-    /*
-    DPCT1003:158: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memcpy(v_d.get(), v, N * sizeof(T)).wait(), 0));
-
+    dpct::get_default_queue().memcpy(v_d.get(), v, N * sizeof(T)).wait();
     cms::sycltools::fillManyFromVector(h_d.get(), ws_d.get(), nParts, v_d.get(), off_d.get(), offsets[10], 256, 0);
-    /*
-    DPCT1003:159: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memcpy(&h, h_d.get(), sizeof(Hist)).wait(), 0));
+    dpct::get_default_queue().memcpy(&h, h_d.get(), sizeof(Hist)).wait();
     assert(0 == h.off[0]);
     assert(offsets[10] == h.size());
 

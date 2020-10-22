@@ -1,5 +1,3 @@
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -11,10 +9,11 @@
 #include <set>
 #include <vector>
 
-#ifdef CL_SYCL_LANGUAGE_VERSION
+#include <CL/sycl.hpp>
+#include <dpct/dpct.hpp>
 
+#ifdef CL_SYCL_LANGUAGE_VERSION
 #include "SYCLCore/device_unique_ptr.h"
-#include "SYCLCore/cudaCheck.h"
 #include "SYCLCore/launch.h"
 #endif
 
@@ -241,66 +240,41 @@ int main(void) {
     size_t size16 = n * sizeof(unsigned short);
     // size_t size8 = n * sizeof(uint8_t);
 
-    /*
-    DPCT1003:220: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memcpy(d_moduleStart.get(), &nModules, sizeof(uint32_t)).wait(), 0));
-
-    /*
-    DPCT1003:221: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memcpy(d_id.get(), h_id.get(), size16).wait(), 0));
-    /*
-    DPCT1003:222: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memcpy(d_x.get(), h_x.get(), size16).wait(), 0));
-    /*
-    DPCT1003:223: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memcpy(d_y.get(), h_y.get(), size16).wait(), 0));
-    /*
-    DPCT1003:224: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memcpy(d_adc.get(), h_adc.get(), size16).wait(), 0));
+    dpct::get_default_queue().memcpy(d_moduleStart.get(), &nModules, sizeof(uint32_t)).wait();
+    dpct::get_default_queue().memcpy(d_id.get(), h_id.get(), size16).wait();
+    dpct::get_default_queue().memcpy(d_x.get(), h_x.get(), size16).wait();
+    dpct::get_default_queue().memcpy(d_y.get(), h_y.get(), size16).wait();
+    dpct::get_default_queue().memcpy(d_adc.get(), h_adc.get(), size16).wait();
     // Launch CUDA Kernels
     int threadsPerBlock = (kkk == 5) ? 512 : ((kkk == 3) ? 128 : 256);
     int blocksPerGrid = (numElements + threadsPerBlock - 1) / threadsPerBlock;
     std::cout << "CUDA countModules kernel launch with " << blocksPerGrid << " blocks of " << threadsPerBlock
               << " threads\n";
 
-    cms::sycltools::launch(countModules, {blocksPerGrid, threadsPerBlock}, d_id.get(), d_moduleStart.get(), d_clus.get(), n);
+    cms::sycltools::launch(
+        countModules, {blocksPerGrid, threadsPerBlock}, d_id.get(), d_moduleStart.get(), d_clus.get(), n);
 
     blocksPerGrid = MaxNumModules;  //nModules;
 
     std::cout << "CUDA findModules kernel launch with " << blocksPerGrid << " blocks of " << threadsPerBlock
               << " threads\n";
-    /*
-    DPCT1003:225: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memset(d_clusInModule.get(), 0, MaxNumModules * sizeof(uint32_t)).wait(), 0));
+    dpct::get_default_queue().memset(d_clusInModule.get(), 0, MaxNumModules * sizeof(uint32_t)).wait();
 
     cms::sycltools::launch(findClus,
-                      {blocksPerGrid, threadsPerBlock},
-                      d_id.get(),
-                      d_x.get(),
-                      d_y.get(),
-                      d_moduleStart.get(),
-                      d_clusInModule.get(),
-                      d_moduleId.get(),
-                      d_clus.get(),
-                      n);
+                           {blocksPerGrid, threadsPerBlock},
+                           d_id.get(),
+                           d_x.get(),
+                           d_y.get(),
+                           d_moduleStart.get(),
+                           d_clusInModule.get(),
+                           d_moduleId.get(),
+                           d_clus.get(),
+                           n);
     dpct::get_current_device().queues_wait_and_throw();
-    /*
-    DPCT1003:226: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memcpy(&nModules, d_moduleStart.get(), sizeof(uint32_t)).wait(), 0));
+    dpct::get_default_queue().memcpy(&nModules, d_moduleStart.get(), sizeof(uint32_t)).wait();
 
     uint32_t nclus[MaxNumModules], moduleId[nModules];
-    /*
-    DPCT1003:227: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck(
-        (dpct::get_default_queue().memcpy(&nclus, d_clusInModule.get(), MaxNumModules * sizeof(uint32_t)).wait(), 0));
+    dpct::get_default_queue().memcpy(&nclus, d_clusInModule.get(), MaxNumModules * sizeof(uint32_t)).wait();
 
     std::cout << "before charge cut found " << std::accumulate(nclus, nclus + MaxNumModules, 0) << " clusters"
               << std::endl;
@@ -313,14 +287,14 @@ int main(void) {
       std::cout << "ERROR!!!!! wrong number of cluster found" << std::endl;
 
     cms::sycltools::launch(clusterChargeCut,
-                      {blocksPerGrid, threadsPerBlock},
-                      d_id.get(),
-                      d_adc.get(),
-                      d_moduleStart.get(),
-                      d_clusInModule.get(),
-                      d_moduleId.get(),
-                      d_clus.get(),
-                      n);
+                           {blocksPerGrid, threadsPerBlock},
+                           d_id.get(),
+                           d_adc.get(),
+                           d_moduleStart.get(),
+                           d_clusInModule.get(),
+                           d_moduleId.get(),
+                           d_clus.get(),
+                           n);
 
     dpct::get_current_device().queues_wait_and_throw();
 #else
@@ -365,23 +339,10 @@ int main(void) {
     std::cout << "found " << nModules << " Modules active" << std::endl;
 
 #ifdef CL_SYCL_LANGUAGE_VERSION
-    /*
-    DPCT1003:228: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memcpy(h_id.get(), d_id.get(), size16).wait(), 0));
-    /*
-    DPCT1003:229: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memcpy(h_clus.get(), d_clus.get(), size32).wait(), 0));
-    /*
-    DPCT1003:230: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck(
-        (dpct::get_default_queue().memcpy(&nclus, d_clusInModule.get(), MaxNumModules * sizeof(uint32_t)).wait(), 0));
-    /*
-    DPCT1003:231: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    cudaCheck((dpct::get_default_queue().memcpy(&moduleId, d_moduleId.get(), nModules * sizeof(uint32_t)).wait(), 0));
+    dpct::get_default_queue().memcpy(h_id.get(), d_id.get(), size16).wait();
+    dpct::get_default_queue().memcpy(h_clus.get(), d_clus.get(), size32).wait();
+    dpct::get_default_queue().memcpy(&nclus, d_clusInModule.get(), MaxNumModules * sizeof(uint32_t)).wait();
+    dpct::get_default_queue().memcpy(&moduleId, d_moduleId.get(), nModules * sizeof(uint32_t)).wait();
 #endif
 
     std::set<unsigned int> clids;

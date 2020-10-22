@@ -2,7 +2,7 @@
 #define SYCLDataFormats_TrackingRecHit_interface_TrackingRecHit2DHeterogeneous_h
 
 #include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
+
 #include "SYCLDataFormats/TrackingRecHit2DSOAView.h"
 #include "SYCLDataFormats/HeterogeneousSoA.h"
 
@@ -72,7 +72,6 @@ private:
 };
 
 #include "SYCLCore/copyAsync.h"
-#include "SYCLCore/cudaCheck.h"
 
 template <typename Traits>
 TrackingRecHit2DHeterogeneous<Traits>::TrackingRecHit2DHeterogeneous(uint32_t nHits,

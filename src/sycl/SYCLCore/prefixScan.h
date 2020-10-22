@@ -1,17 +1,17 @@
 #ifndef HeterogeneousCore_CUDAUtilities_interface_prefixScan_h
 #define HeterogeneousCore_CUDAUtilities_interface_prefixScan_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
+#include <cassert>
 #include <cstdint>
 
+#include <CL/sycl.hpp>
+
 #include "SYCLCore/cudaCompat.h"
-#include "SYCLCore/cuda_assert.h"
 
 #ifdef DPCPP_COMPATIBILITY_TEMP
 template <typename T>
-SYCL_EXTERNAL void __dpct_inline__
-warpPrefixScan(T const* __restrict__ ci, T* __restrict__ co, uint32_t i, uint32_t mask, sycl::nd_item<3> item_ct1) {
+SYCL_EXTERNAL inline __attribute__((always_inline)) void warpPrefixScan(
+    T const* __restrict__ ci, T* __restrict__ co, uint32_t i, uint32_t mask, sycl::nd_item<3> item_ct1) {
   // ci and co may be the same
   auto x = ci[i];
   auto laneId = item_ct1.get_local_id(2) & 0x1f;
@@ -31,7 +31,10 @@ warpPrefixScan(T const* __restrict__ ci, T* __restrict__ co, uint32_t i, uint32_
 //same as above may remove
 #ifdef DPCPP_COMPATIBILITY_TEMP
 template <typename T>
-SYCL_EXTERNAL void __dpct_inline__ warpPrefixScan(T* c, uint32_t i, uint32_t mask, sycl::nd_item<3> item_ct1) {
+SYCL_EXTERNAL inline __attribute__((always_inline)) void warpPrefixScan(T* c,
+                                                                        uint32_t i,
+                                                                        uint32_t mask,
+                                                                        sycl::nd_item<3> item_ct1) {
   auto x = c[i];
   auto laneId = item_ct1.get_local_id(2) & 0x1f;
 #pragma unroll
@@ -49,15 +52,15 @@ SYCL_EXTERNAL void __dpct_inline__ warpPrefixScan(T* c, uint32_t i, uint32_t mas
 
 // limited to 32*32 elements....
 template <typename T>
-SYCL_EXTERNAL SYCL_EXTERNAL void __dpct_inline__ blockPrefixScan(T const* __restrict__ ci,
-                                                                 T* __restrict__ co,
-                                                                 uint32_t size,
-                                                                 T* ws
+SYCL_EXTERNAL inline __attribute__((always_inline)) void blockPrefixScan(T const* __restrict__ ci,
+                                                                         T* __restrict__ co,
+                                                                         uint32_t size,
+                                                                         T* ws
 #ifndef DPCPP_COMPATIBILITY_TEMP
-                                                                 = nullptr
+                                                                         = nullptr
 #endif
-                                                                 ,
-                                                                 sycl::nd_item<3> item_ct1) {
+                                                                         ,
+                                                                         sycl::nd_item<3> item_ct1) {
 #ifdef DPCPP_COMPATIBILITY_TEMP
   assert(ws);
   assert(size <= 1024);
@@ -101,14 +104,14 @@ SYCL_EXTERNAL SYCL_EXTERNAL void __dpct_inline__ blockPrefixScan(T const* __rest
 // same as above, may remove
 // limited to 32*32 elements....
 template <typename T>
-SYCL_EXTERNAL SYCL_EXTERNAL void __dpct_inline__ blockPrefixScan(T* c,
-                                                                 uint32_t size,
-                                                                 T* ws
+SYCL_EXTERNAL inline __attribute__((always_inline)) void blockPrefixScan(T* c,
+                                                                         uint32_t size,
+                                                                         T* ws
 #ifndef DPCPP_COMPATIBILITY_TEMP
-                                                                 = nullptr
+                                                                         = nullptr
 #endif
-                                                                 ,
-                                                                 sycl::nd_item<3> item_ct1) {
+                                                                         ,
+                                                                         sycl::nd_item<3> item_ct1) {
 #ifdef DPCPP_COMPATIBILITY_TEMP
   assert(ws);
   assert(size <= 1024);

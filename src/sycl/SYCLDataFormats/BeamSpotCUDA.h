@@ -2,7 +2,7 @@
 #define SYCLDataFormats_BeamSpot_interface_BeamSpotCUDA_h
 
 #include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
+
 #include "SYCLCore/device_unique_ptr.h"
 
 class BeamSpotCUDA {

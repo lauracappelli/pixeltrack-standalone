@@ -5,8 +5,6 @@
 
 #include <CL/sycl.hpp>
 
-#include "SYCLCore/cudaCheck.h"
-
 /*
  * `cms::sycltools::launch` and `cms::sycltools::launch_cooperative` are wrappers around
  * the CUDA Runtime API calls to setup and call a CUDA kernel from the host.
@@ -100,8 +98,7 @@ namespace cms {
       /*
       DPCT1004:72: Could not generate replacement.
       */
-      cudaCheck(cudaLaunchKernel(
-          (const void*)kernel, config.gridDim, config.blockDim, nullptr, config.sharedMem, config.stream));
+      cudaLaunchKernel((const void*)kernel, config.gridDim, config.blockDim, nullptr, config.sharedMem, config.stream);
     }
 
     template <typename F, typename... Args>
@@ -121,8 +118,8 @@ namespace cms {
       /*
       DPCT1004:73: Could not generate replacement.
       */
-      cudaCheck(cudaLaunchKernel(
-          (const void*)kernel, config.gridDim, config.blockDim, (void**)pointers, config.sharedMem, config.stream));
+      cudaLaunchKernel(
+          (const void*)kernel, config.gridDim, config.blockDim, (void**)pointers, config.sharedMem, config.stream);
     }
 
     // wrappers for cudaLaunchCooperativeKernel
@@ -131,8 +128,8 @@ namespace cms {
       /*
       DPCT1004:74: Could not generate replacement.
       */
-      cudaCheck(cudaLaunchCooperativeKernel(
-          (const void*)kernel, config.gridDim, config.blockDim, nullptr, config.sharedMem, config.stream));
+      cudaLaunchCooperativeKernel(
+          (const void*)kernel, config.gridDim, config.blockDim, nullptr, config.sharedMem, config.stream);
     }
 
     template <typename F, typename... Args>
@@ -152,8 +149,8 @@ namespace cms {
       /*
       DPCT1004:75: Could not generate replacement.
       */
-      cudaCheck(cudaLaunchCooperativeKernel(
-          (const void*)kernel, config.gridDim, config.blockDim, (void**)pointers, config.sharedMem, config.stream));
+      cudaLaunchCooperativeKernel(
+          (const void*)kernel, config.gridDim, config.blockDim, (void**)pointers, config.sharedMem, config.stream);
     }
 
   }  // namespace sycltools
