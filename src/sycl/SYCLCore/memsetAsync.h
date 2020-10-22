@@ -9,7 +9,7 @@
 #include <type_traits>
 
 namespace cms {
-  namespace cuda {
+  namespace sycltools {
     template <typename T>
     inline void memsetAsync(device::unique_ptr<T>& ptr, T value, sycl::queue* stream) {
       // Shouldn't compile for array types because of sizeof(T), but
@@ -35,7 +35,7 @@ namespace cms {
       */
       cudaCheck((stream->memset(ptr.get(), value, nelements * sizeof(T)), 0));
     }
-  }  // namespace cuda
+  }  // namespace sycltools
 }  // namespace cms
 
 #endif

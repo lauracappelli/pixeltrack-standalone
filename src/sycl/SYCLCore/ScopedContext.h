@@ -1,39 +1,30 @@
 #ifndef HeterogeneousCore_SYCLCore_ScopedContext_h
 #define HeterogeneousCore_SYCLCore_ScopedContext_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <optional>
 
+#include <CL/sycl.hpp>
+
+#include "SYCLCore/ContextState.h"
 #include "SYCLCore/Product.h"
-#include "Framework/WaitingTaskWithArenaHolder.h"
-#include "Framework/Event.h"
 #include "Framework/EDGetToken.h"
 #include "Framework/EDPutToken.h"
-#include "SYCLCore/ContextState.h"
-#include "SYCLCore/EventCache.h"
-#include "SYCLCore/SharedEventPtr.h"
-#include "SYCLCore/SharedStreamPtr.h"
+#include "Framework/Event.h"
+#include "Framework/WaitingTaskWithArenaHolder.h"
 
 namespace cms {
-  namespace cudatest {
+  namespace sycltoolstest {
     class TestScopedContext;
   }
 
-  namespace cuda {
+  namespace sycltools {
 
     namespace impl {
       // This class is intended to be derived by other ScopedContext*, not for general use
       class ScopedContextBase {
       public:
-        int device() const { return currentDevice_; }
-
-        // cudaStream_t is a pointer to a thread-safe object, for which a
-        // mutable access is needed even if the ScopedContext itself
-        // would be const. Therefore it is ok to return a non-const
-        // pointer from a const method here.
-        sycl::queue* stream() const { return stream_.get(); }
-        const SharedStreamPtr& streamPtr() const { return stream_; }
+        sycl::device device() const { return stream_.get_device(); }
+        sycl::queue stream() const { return stream_; }
 
       protected:
         // The constructors set the current device, but the device
@@ -44,20 +35,19 @@ namespace cms {
         // really matter between modules (or across TBB tasks).
         explicit ScopedContextBase(edm::StreamID streamID);
 
-        explicit ScopedContextBase(const ProductBase& data);
+        explicit ScopedContextBase(ProductBase const& data);
 
-        explicit ScopedContextBase(int device, SharedStreamPtr stream);
+        explicit ScopedContextBase(sycl::queue stream);
 
       private:
-        int currentDevice_;
-        SharedStreamPtr stream_;
+        sycl::queue stream_;
       };
 
       class ScopedContextGetterBase : public ScopedContextBase {
       public:
         template <typename T>
         const T& get(const Product<T>& data) {
-          synchronizeStreams(data.device(), data.stream(), data.isAvailable(), data.event());
+          synchronizeStreams(data.stream(), data.isAvailable(), data.event());
           return data.data_;
         }
 
@@ -70,7 +60,7 @@ namespace cms {
         template <typename... Args>
         ScopedContextGetterBase(Args&&... args) : ScopedContextBase(std::forward<Args>(args)...) {}
 
-        void synchronizeStreams(int dataDevice, sycl::queue* dataStream, bool available, sycl::event dataEvent);
+        void synchronizeStreams(sycl::queue dataStream, bool available, sycl::event dataEvent);
       };
 
       class ScopedContextHolderHelper {
@@ -85,7 +75,7 @@ namespace cms {
           waitingTaskHolder_ = std::move(waitingTaskHolder);
         }
 
-        void enqueueCallback(int device, sycl::queue* stream);
+        void enqueueCallback(sycl::queue stream);
 
       private:
         edm::WaitingTaskWithArenaHolder waitingTaskHolder_;
@@ -156,8 +146,7 @@ namespace cms {
       explicit ScopedContextProduce(const ProductBase& data) : ScopedContextGetterBase(data) {}
 
       /// Constructor to re-use the CUDA stream of acquire() (ExternalWork module)
-      explicit ScopedContextProduce(ContextState& state)
-          : ScopedContextGetterBase(state.device(), state.releaseStreamPtr()) {}
+      explicit ScopedContextProduce(ContextState& state) : ScopedContextGetterBase(state.releaseStream()) {}
 
       /// Record the CUDA event, all asynchronous work must have been queued before the destructor
       ~ScopedContextProduce();
@@ -165,23 +154,23 @@ namespace cms {
       template <typename T>
       std::unique_ptr<Product<T>> wrap(T data) {
         // make_unique doesn't work because of private constructor
-        return std::unique_ptr<Product<T>>(new Product<T>(device(), streamPtr(), event_, std::move(data)));
+        return std::unique_ptr<Product<T>>(new Product<T>(stream(), event_, std::move(data)));
       }
 
       template <typename T, typename... Args>
       auto emplace(edm::Event& iEvent, edm::EDPutTokenT<T> token, Args&&... args) {
-        return iEvent.emplace(token, device(), streamPtr(), event_, std::forward<Args>(args)...);
+        return iEvent.emplace(token, stream(), event_, std::forward<Args>(args)...);
       }
 
     private:
       friend class cudatest::TestScopedContext;
 
       // This construcor is only meant for testing
-      explicit ScopedContextProduce(int device, SharedStreamPtr stream, SharedEventPtr event)
-          : ScopedContextGetterBase(device, std::move(stream)), event_{std::move(event)} {}
+      explicit ScopedContextProduce(sycl::queue stream, sycl::event event)
+          : ScopedContextGetterBase(stream), event_{event} {}
 
-      // create the CUDA Event upfront to catch possible errors from its creation
-      SharedEventPtr event_ = getEventCache().get();
+      // the barrier should be a no-op on an ordered queue, but is used to initialise the event on the data stream
+      sycl::event event_ = stream().submit_barrier();
     };
 
     /**
@@ -194,9 +183,7 @@ namespace cms {
     public:
       /// Constructor to re-use the CUDA stream of acquire() (ExternalWork module)
       explicit ScopedContextTask(ContextState const* state, edm::WaitingTaskWithArenaHolder waitingTaskHolder)
-          : ScopedContextBase(state->device(), state->streamPtr()),  // don't move, state is re-used afterwards
-            holderHelper_{std::move(waitingTaskHolder)},
-            contextState_{state} {}
+          : ScopedContextBase(state->stream()), holderHelper_{std::move(waitingTaskHolder)}, contextState_{state} {}
 
       ~ScopedContextTask();
 
@@ -237,7 +224,7 @@ namespace cms {
                                                })});
       }
     }  // namespace impl
-  }    // namespace cuda
+  }    // namespace sycltools
 }  // namespace cms
 
 #endif

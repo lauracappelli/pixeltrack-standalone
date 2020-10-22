@@ -22,7 +22,7 @@
 #include "SYCLCore/prefixScan.h"
 
 namespace cms {
-  namespace cuda {
+  namespace sycltools {
 
     template <typename Histo, typename T>
     void countFromVector(Histo *__restrict__ h,
@@ -157,7 +157,7 @@ namespace cms {
       assoc->bulkFinalizeFill(*apc, item_ct1);
     }
 
-  }  // namespace cuda
+  }  // namespace sycltools
 }  // namespace cms
 
 // iteratate over N bins left and right of the one containing "v"

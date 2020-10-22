@@ -90,10 +90,10 @@ void go(bool useShared) {
 
     std::random_shuffle(v, v + N);
 
-    auto v_d = cms::cuda::make_device_unique<U[]>(N, nullptr);
-    auto ind_d = cms::cuda::make_device_unique<uint16_t[]>(N, nullptr);
-    auto ws_d = cms::cuda::make_device_unique<uint16_t[]>(N, nullptr);
-    auto off_d = cms::cuda::make_device_unique<uint32_t[]>(blocks + 1, nullptr);
+    auto v_d = cms::sycltools::make_device_unique<U[]>(N, nullptr);
+    auto ind_d = cms::sycltools::make_device_unique<uint16_t[]>(N, nullptr);
+    auto ws_d = cms::sycltools::make_device_unique<uint16_t[]>(N, nullptr);
+    auto off_d = cms::sycltools::make_device_unique<uint32_t[]>(blocks + 1, nullptr);
 
     /*
     DPCT1003:208: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
@@ -112,10 +112,10 @@ void go(bool useShared) {
     delta -= (std::chrono::high_resolution_clock::now() - start);
     constexpr int MaxSize = 256 * 32;
     if (useShared)
-      cms::cuda::launch(
+      cms::sycltools::launch(
           radixSortMultiWrapper<U, NS>, {blocks, ntXBl, MaxSize * 2}, v_d.get(), ind_d.get(), off_d.get(), nullptr);
     else
-      cms::cuda::launch(
+      cms::sycltools::launch(
           radixSortMultiWrapper2<U, NS>, {blocks, ntXBl}, v_d.get(), ind_d.get(), off_d.get(), ws_d.get());
 
     if (i == 0)

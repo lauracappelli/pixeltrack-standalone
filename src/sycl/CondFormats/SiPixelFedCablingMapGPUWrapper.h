@@ -34,13 +34,13 @@ private:
     ~GPUData();
     SiPixelFedCablingMapGPU *cablingMapDevice = nullptr;  // pointer to struct in GPU
   };
-  cms::cuda::ESProduct<GPUData> gpuData_;
+  cms::sycltools::ESProduct<GPUData> gpuData_;
 
   struct ModulesToUnpack {
     ~ModulesToUnpack();
     unsigned char *modToUnpDefault = nullptr;  // pointer to GPU
   };
-  cms::cuda::ESProduct<ModulesToUnpack> modToUnp_;
+  cms::sycltools::ESProduct<ModulesToUnpack> modToUnp_;
 };
 
 #endif

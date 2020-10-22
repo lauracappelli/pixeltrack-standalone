@@ -13,7 +13,7 @@
 #include <cstdint>
 #include <cstring>
 
-namespace cudaCompat {
+namespace sycltoolsCompat {
 
 #ifndef __DPCT_HPP__
   struct dim3 {
@@ -75,7 +75,7 @@ namespace cudaCompat {
     gridDim = sycl::range(1, 1, 1);
   }
 
-}  // namespace cudaCompat
+}  // namespace sycltoolsCompat
 
 // some  not needed as done by cuda runtime...
 #ifndef __DPCT_HPP__
@@ -95,7 +95,7 @@ namespace cudaCompat {
 #endif
 
 #ifndef DPCPP_COMPATIBILITY_TEMP
-using namespace cudaCompat;
+using namespace sycltoolsCompat;
 #endif
 
 #endif

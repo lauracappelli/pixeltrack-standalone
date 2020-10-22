@@ -1,5 +1,3 @@
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <algorithm>
 #include <cstdlib>
 #include <chrono>
@@ -9,8 +7,10 @@
 #include <string>
 #include <vector>
 
+#include <CL/sycl.hpp>
 #include <tbb/task_scheduler_init.h>
 
+#include "SYCLCore/chooseDevice.h"
 #include "EventProcessor.h"
 
 namespace {
@@ -85,24 +85,11 @@ int main(int argc, char** argv) try {
     std::cout << "Data directory '" << datadir << "' does not exist" << std::endl;
     return EXIT_FAILURE;
   }
-  int numberOfDevices;
-  /*
-  DPCT1003:95: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-  */
-  auto status = (numberOfDevices = dpct::dev_mgr::instance().device_count(), 0);
-  /*
-  DPCT1000:94: Error handling if-stmt was detected but could not be rewritten.
-  */
-  if (0 != status) {
-    /*
-    DPCT1001:93: The statement could not be removed.
-    */
-    std::cout << "Failed to initialize the CUDA runtime";
-    return EXIT_FAILURE;
-  }
-  std::cout << "Found " << numberOfDevices << " devices" << std::endl;
 
-  // Initialize EventProcessor
+  // Initialise the SYCL runtime
+  cms::sycltools::enumerateDevices(true);
+
+  // Initialise the EventProcessor
   std::vector<std::string> edmodules;
   std::vector<std::string> esmodules;
   if (not empty) {

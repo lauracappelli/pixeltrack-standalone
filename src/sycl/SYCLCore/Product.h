@@ -11,7 +11,7 @@ namespace edm {
 }
 
 namespace cms {
-  namespace cuda {
+  namespace sycltools {
     namespace impl {
       class ScopedContextGetterBase;
     }
@@ -20,7 +20,7 @@ namespace cms {
      * The purpose of this class is to wrap CUDA data to edm::Event in a
      * way which forces correct use of various utilities.
      *
-     * The non-default construction has to be done with cms::cuda::ScopedContext
+     * The non-default construction has to be done with cms::sycltools::ScopedContext
      * (in order to properly register the CUDA event).
      *
      * The default constructor is needed only for the ROOT dictionary generation.
@@ -45,16 +45,16 @@ namespace cms {
       friend class ScopedContextProduce;
       friend class edm::Wrapper<Product<T>>;
 
-      explicit Product(int device, SharedStreamPtr stream, SharedEventPtr event, T data)
-          : ProductBase(device, std::move(stream), std::move(event)), data_(std::move(data)) {}
+      explicit Product(sycl::queue stream, sycl::event event, T data)
+          : ProductBase(std::move(stream), std::move(event)), data_(std::move(data)) {}
 
       template <typename... Args>
-      explicit Product(int device, SharedStreamPtr stream, SharedEventPtr event, Args&&... args)
-          : ProductBase(device, std::move(stream), std::move(event)), data_(std::forward<Args>(args)...) {}
+      explicit Product(sycl::queue stream, sycl::event event, Args&&... args)
+          : ProductBase(std::move(stream), std::move(event)), data_(std::forward<Args>(args)...) {}
 
       T data_;  //!
     };
-  }  // namespace cuda
+  }  // namespace sycltools
 }  // namespace cms
 
 #endif

@@ -19,26 +19,26 @@ private:
                edm::WaitingTaskWithArenaHolder waitingTaskHolder) override;
   void produce(edm::Event& iEvent, const edm::EventSetup& iSetup) override;
 
-  edm::EDGetTokenT<cms::cuda::Product<SiPixelDigisCUDA>> digiGetToken_;
+  edm::EDGetTokenT<cms::sycltools::Product<SiPixelDigisCUDA>> digiGetToken_;
   edm::EDPutTokenT<SiPixelDigisSoA> digiPutToken_;
 
-  cms::cuda::host::unique_ptr<uint32_t[]> pdigi_;
-  cms::cuda::host::unique_ptr<uint32_t[]> rawIdArr_;
-  cms::cuda::host::unique_ptr<uint16_t[]> adc_;
-  cms::cuda::host::unique_ptr<int32_t[]> clus_;
+  cms::sycltools::host::unique_ptr<uint32_t[]> pdigi_;
+  cms::sycltools::host::unique_ptr<uint32_t[]> rawIdArr_;
+  cms::sycltools::host::unique_ptr<uint16_t[]> adc_;
+  cms::sycltools::host::unique_ptr<int32_t[]> clus_;
 
   size_t nDigis_;
 };
 
 SiPixelDigisSoAFromCUDA::SiPixelDigisSoAFromCUDA(edm::ProductRegistry& reg)
-    : digiGetToken_(reg.consumes<cms::cuda::Product<SiPixelDigisCUDA>>()),
+    : digiGetToken_(reg.consumes<cms::sycltools::Product<SiPixelDigisCUDA>>()),
       digiPutToken_(reg.produces<SiPixelDigisSoA>()) {}
 
 void SiPixelDigisSoAFromCUDA::acquire(const edm::Event& iEvent,
                                       const edm::EventSetup& iSetup,
                                       edm::WaitingTaskWithArenaHolder waitingTaskHolder) {
   // Do the transfer in a CUDA stream parallel to the computation CUDA stream
-  cms::cuda::ScopedContextAcquire ctx{iEvent.streamID(), std::move(waitingTaskHolder)};
+  cms::sycltools::ScopedContextAcquire ctx{iEvent.streamID(), std::move(waitingTaskHolder)};
 
   const auto& gpuDigis = ctx.get(iEvent, digiGetToken_);
 

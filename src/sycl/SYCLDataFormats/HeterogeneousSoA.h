@@ -21,8 +21,8 @@ public:
   HeterogeneousSoA(HeterogeneousSoA &&) = default;
   HeterogeneousSoA &operator=(HeterogeneousSoA &&) = default;
 
-  explicit HeterogeneousSoA(cms::cuda::device::unique_ptr<T> &&p) : dm_ptr(std::move(p)) {}
-  explicit HeterogeneousSoA(cms::cuda::host::unique_ptr<T> &&p) : hm_ptr(std::move(p)) {}
+  explicit HeterogeneousSoA(cms::sycltools::device::unique_ptr<T> &&p) : dm_ptr(std::move(p)) {}
+  explicit HeterogeneousSoA(cms::sycltools::host::unique_ptr<T> &&p) : hm_ptr(std::move(p)) {}
   explicit HeterogeneousSoA(std::unique_ptr<T> &&p) : std_ptr(std::move(p)) {}
 
   auto const *get() const { return dm_ptr ? dm_ptr.get() : (hm_ptr ? hm_ptr.get() : std_ptr.get()); }
@@ -38,9 +38,9 @@ public:
   auto *operator->() { return get(); }
 
   // in reality valid only for GPU version...
-  cms::cuda::host::unique_ptr<T> toHostAsync(sycl::queue *stream) const {
+  cms::sycltools::host::unique_ptr<T> toHostAsync(sycl::queue *stream) const {
     assert(dm_ptr);
-    auto ret = cms::cuda::make_host_unique<T>(stream);
+    auto ret = cms::sycltools::make_host_unique<T>(stream);
     /*
     DPCT1003:55: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
     */
@@ -50,65 +50,65 @@ public:
 
 private:
   // a union wan't do it, a variant will not be more efficienct
-  cms::cuda::device::unique_ptr<T> dm_ptr;  //!
-  cms::cuda::host::unique_ptr<T> hm_ptr;    //!
+  cms::sycltools::device::unique_ptr<T> dm_ptr;  //!
+  cms::sycltools::host::unique_ptr<T> hm_ptr;    //!
   std::unique_ptr<T> std_ptr;               //!
 };
 
-namespace cudaCompat {
+namespace sycltoolsCompat {
 
   struct GPUTraits {
     template <typename T>
-    using unique_ptr = cms::cuda::device::unique_ptr<T>;
+    using unique_ptr = cms::sycltools::device::unique_ptr<T>;
 
     template <typename T>
     static auto make_unique(sycl::queue *stream) {
-      return cms::cuda::make_device_unique<T>(stream);
+      return cms::sycltools::make_device_unique<T>(stream);
     }
 
     template <typename T>
     static auto make_unique(size_t size, sycl::queue *stream) {
-      return cms::cuda::make_device_unique<T>(size, stream);
+      return cms::sycltools::make_device_unique<T>(size, stream);
     }
 
     template <typename T>
     static auto make_host_unique(sycl::queue *stream) {
-      return cms::cuda::make_host_unique<T>(stream);
+      return cms::sycltools::make_host_unique<T>(stream);
     }
 
     template <typename T>
     static auto make_device_unique(sycl::queue *stream) {
-      return cms::cuda::make_device_unique<T>(stream);
+      return cms::sycltools::make_device_unique<T>(stream);
     }
 
     template <typename T>
     static auto make_device_unique(size_t size, sycl::queue *stream) {
-      return cms::cuda::make_device_unique<T>(size, stream);
+      return cms::sycltools::make_device_unique<T>(size, stream);
     }
   };
 
   struct HostTraits {
     template <typename T>
-    using unique_ptr = cms::cuda::host::unique_ptr<T>;
+    using unique_ptr = cms::sycltools::host::unique_ptr<T>;
 
     template <typename T>
     static auto make_unique(sycl::queue *stream) {
-      return cms::cuda::make_host_unique<T>(stream);
+      return cms::sycltools::make_host_unique<T>(stream);
     }
 
     template <typename T>
     static auto make_host_unique(sycl::queue *stream) {
-      return cms::cuda::make_host_unique<T>(stream);
+      return cms::sycltools::make_host_unique<T>(stream);
     }
 
     template <typename T>
     static auto make_device_unique(sycl::queue *stream) {
-      return cms::cuda::make_device_unique<T>(stream);
+      return cms::sycltools::make_device_unique<T>(stream);
     }
 
     template <typename T>
     static auto make_device_unique(size_t size, sycl::queue *stream) {
-      return cms::cuda::make_device_unique<T>(size, stream);
+      return cms::sycltools::make_device_unique<T>(size, stream);
     }
   };
 
@@ -142,7 +142,7 @@ namespace cudaCompat {
     }
   };
 
-}  // namespace cudaCompat
+}  // namespace sycltoolsCompat
 
 // a heterogeneous unique pointer (of a different sort) ...
 template <typename T, typename Traits>
@@ -163,7 +163,7 @@ public:
 
   T *get() { return m_ptr.get(); }
 
-  cms::cuda::host::unique_ptr<T> toHostAsync(sycl::queue *stream) const;
+  cms::sycltools::host::unique_ptr<T> toHostAsync(sycl::queue *stream) const;
 
 private:
   unique_ptr<T> m_ptr;  //!
@@ -176,8 +176,8 @@ HeterogeneousSoAImpl<T, Traits>::HeterogeneousSoAImpl(sycl::queue *stream) {
 
 // in reality valid only for GPU version...
 template <typename T, typename Traits>
-cms::cuda::host::unique_ptr<T> HeterogeneousSoAImpl<T, Traits>::toHostAsync(sycl::queue *stream) const {
-  auto ret = cms::cuda::make_host_unique<T>(stream);
+cms::sycltools::host::unique_ptr<T> HeterogeneousSoAImpl<T, Traits>::toHostAsync(sycl::queue *stream) const {
+  auto ret = cms::sycltools::make_host_unique<T>(stream);
   /*
   DPCT1003:19: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
   */

@@ -2,10 +2,10 @@
 #include <dpct/dpct.hpp>
 #include "SYCLCore/cudaCompat.h"
 
-namespace cudaCompat {
+namespace sycltoolsCompat {
   thread_local sycl::range blockIdx(1, 1, 1);
   thread_local sycl::range gridDim(1, 1, 1);
-}  // namespace cudaCompat
+}  // namespace sycltoolsCompat
 
 namespace {
   struct InitGrid {

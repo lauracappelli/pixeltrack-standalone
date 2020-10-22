@@ -102,8 +102,8 @@ namespace pixelgpudetails {
     }
 
     if (nHits) {
-      auto hws = cms::cuda::make_device_unique<uint8_t[]>(TrackingRecHit2DSOAView::Hist::wsSize(), stream);
-      cms::cuda::fillManyFromVector(
+      auto hws = cms::sycltools::make_device_unique<uint8_t[]>(TrackingRecHit2DSOAView::Hist::wsSize(), stream);
+      cms::sycltools::fillManyFromVector(
           hits_d.phiBinner(), hws.get(), 10, hits_d.iphi(), hits_d.hitsLayerStart(), nHits, 256, stream);
       /*
       DPCT1010:69: SYCL uses exceptions to report errors and does not use the error codes. The call was replaced with 0. You need to rewrite this code.

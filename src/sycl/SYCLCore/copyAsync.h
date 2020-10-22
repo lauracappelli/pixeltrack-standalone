@@ -10,7 +10,7 @@
 #include <type_traits>
 
 namespace cms {
-  namespace cuda {
+  namespace sycltools {
     // Single element
     template <typename T>
     inline void copyAsync(device::unique_ptr<T>& dst, const host::unique_ptr<T>& src, sycl::queue* stream) {
@@ -56,7 +56,7 @@ namespace cms {
       */
       cudaCheck((stream->memcpy(dst.get(), src.get(), nelements * sizeof(T)), 0));
     }
-  }  // namespace cuda
+  }  // namespace sycltools
 }  // namespace cms
 
 #endif

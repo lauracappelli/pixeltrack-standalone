@@ -15,7 +15,7 @@
 #include "SYCLCore/eventWorkHasCompleted.h"
 
 namespace cms {
-  namespace cuda {
+  namespace sycltools {
     template <typename T>
     class ESProduct {
     public:
@@ -97,7 +97,7 @@ namespace cms {
 
       std::vector<Item> gpuDataPerDevice_;
     };
-  }  // namespace cuda
+  }  // namespace sycltools
 }  // namespace cms
 
 #endif

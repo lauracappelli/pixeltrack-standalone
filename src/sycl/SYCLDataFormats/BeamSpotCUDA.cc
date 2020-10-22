@@ -6,7 +6,7 @@
 #include "SYCLCore/device_unique_ptr.h"
 
 BeamSpotCUDA::BeamSpotCUDA(Data const* data_h, sycl::queue* stream) {
-  data_d_ = cms::cuda::make_device_unique<Data>(stream);
+  data_d_ = cms::sycltools::make_device_unique<Data>(stream);
   /*
   DPCT1003:27: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
   */

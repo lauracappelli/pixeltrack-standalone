@@ -48,11 +48,11 @@ namespace pixelgpudetails {
     /*
     DPCT1048:180: The original value cudaHostAllocWriteCombined is not meaningful in the migrated code and was removed or replaced with 0. You may need to check the migrated code.
     */
-    word_ = cms::cuda::make_host_noncached_unique<unsigned int[]>(MAX_FED_WORDS, 0);
+    word_ = cms::sycltools::make_host_noncached_unique<unsigned int[]>(MAX_FED_WORDS, 0);
     /*
     DPCT1048:181: The original value cudaHostAllocWriteCombined is not meaningful in the migrated code and was removed or replaced with 0. You may need to check the migrated code.
     */
-    fedId_ = cms::cuda::make_host_noncached_unique<unsigned char[]>(MAX_FED_WORDS, 0);
+    fedId_ = cms::sycltools::make_host_noncached_unique<unsigned char[]>(MAX_FED_WORDS, 0);
   }
 
   void SiPixelRawToClusterGPUKernel::WordFedAppender::initializeWordFed(int fedId,
@@ -582,7 +582,7 @@ namespace pixelgpudetails {
     }
     clusters_d = SiPixelClustersCUDA(gpuClustering::MaxNumModules, stream);
 
-    nModules_Clusters_h = cms::cuda::make_host_unique<uint32_t[]>(2, stream);
+    nModules_Clusters_h = cms::sycltools::make_host_unique<uint32_t[]>(2, stream);
 
     if (wordCounter)  // protect in case of empty event....
     {
@@ -591,8 +591,8 @@ namespace pixelgpudetails {
 
       assert(0 == wordCounter % 2);
       // wordCounter is the total no of words in each event to be trasfered on device
-      auto word_d = cms::cuda::make_device_unique<uint32_t[]>(wordCounter, stream);
-      auto fedId_d = cms::cuda::make_device_unique<uint8_t[]>(wordCounter, stream);
+      auto word_d = cms::sycltools::make_device_unique<uint32_t[]>(wordCounter, stream);
+      auto fedId_d = cms::sycltools::make_device_unique<uint8_t[]>(wordCounter, stream);
 
       /*
       DPCT1003:192: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.

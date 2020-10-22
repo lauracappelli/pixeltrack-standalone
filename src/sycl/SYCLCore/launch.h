@@ -1,14 +1,14 @@
 #ifndef HeterogeneousCore_CUDAUtilities_launch_h
 #define HeterogeneousCore_CUDAUtilities_launch_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <tuple>
+
+#include <CL/sycl.hpp>
 
 #include "SYCLCore/cudaCheck.h"
 
 /*
- * `cms::cuda::launch` and `cms::cuda::launch_cooperative` are wrappers around
+ * `cms::sycltools::launch` and `cms::sycltools::launch_cooperative` are wrappers around
  * the CUDA Runtime API calls to setup and call a CUDA kernel from the host.
  *
  * `kernel` should be a pointer to a __global__ void(...) function.
@@ -23,8 +23,8 @@
  *  the exact type.
  *
  *  Unlike the `kernel<<<...>>>(...)` syntax and the `cuda::launch(...)` 
- *  implementation from the CUDA API Wrappers, `cms::cuda::launch(...)` and 
- *  `cms::cuda::launch_cooperative` can be called from standard C++ host code.
+ *  implementation from the CUDA API Wrappers, `cms::sycltools::launch(...)` and 
+ *  `cms::sycltools::launch_cooperative` can be called from standard C++ host code.
  *
  *  Possible optimisations
  *
@@ -43,7 +43,7 @@
  */
 
 namespace cms {
-  namespace cuda {
+  namespace sycltools {
 
     struct LaunchParameters {
       sycl::range<3> gridDim;
@@ -156,7 +156,7 @@ namespace cms {
           (const void*)kernel, config.gridDim, config.blockDim, (void**)pointers, config.sharedMem, config.stream));
     }
 
-  }  // namespace cuda
+  }  // namespace sycltools
 }  // namespace cms
 
 #endif  // HeterogeneousCore_CUDAUtilities_launch_h

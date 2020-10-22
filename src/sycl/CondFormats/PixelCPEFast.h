@@ -37,7 +37,7 @@ private:
     pixelCPEforGPU::ParamsOnGPU h_paramsOnGPU;
     pixelCPEforGPU::ParamsOnGPU *d_paramsOnGPU = nullptr;  // copy of the above on the Device
   };
-  cms::cuda::ESProduct<GPUData> gpuData_;
+  cms::sycltools::ESProduct<GPUData> gpuData_;
 
   void fillParamsForGpu();
 };

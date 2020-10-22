@@ -22,6 +22,6 @@ void testBinaryFind() {
   assert(data2 + 6 == cuda_std::binary_find(data2, data2 + 6, 5));
 }
 
-void wrapper() { cms::cuda::launch(testBinaryFind, {32, 64}); }
+void wrapper() { cms::sycltools::launch(testBinaryFind, {32, 64}); }
 
 int main() { wrapper(); }

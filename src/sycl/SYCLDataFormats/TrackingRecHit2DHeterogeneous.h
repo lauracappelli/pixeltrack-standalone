@@ -39,14 +39,14 @@ public:
   auto iphi() { return m_iphi; }
 
   // only the local coord and detector index
-  cms::cuda::host::unique_ptr<float[]> localCoordToHostAsync(sycl::queue* stream) const;
-  cms::cuda::host::unique_ptr<uint16_t[]> detIndexToHostAsync(sycl::queue* stream) const;
-  cms::cuda::host::unique_ptr<uint32_t[]> hitsModuleStartToHostAsync(sycl::queue* stream) const;
+  cms::sycltools::host::unique_ptr<float[]> localCoordToHostAsync(sycl::queue* stream) const;
+  cms::sycltools::host::unique_ptr<uint16_t[]> detIndexToHostAsync(sycl::queue* stream) const;
+  cms::sycltools::host::unique_ptr<uint32_t[]> hitsModuleStartToHostAsync(sycl::queue* stream) const;
 
   // for validation
-  cms::cuda::host::unique_ptr<float[]> globalCoordToHostAsync(sycl::queue* stream) const;
-  cms::cuda::host::unique_ptr<int32_t[]> chargeToHostAsync(sycl::queue* stream) const;
-  cms::cuda::host::unique_ptr<int16_t[]> sizeToHostAsync(sycl::queue* stream) const;
+  cms::sycltools::host::unique_ptr<float[]> globalCoordToHostAsync(sycl::queue* stream) const;
+  cms::sycltools::host::unique_ptr<int32_t[]> chargeToHostAsync(sycl::queue* stream) const;
+  cms::sycltools::host::unique_ptr<int16_t[]> sizeToHostAsync(sycl::queue* stream) const;
 
 private:
   static constexpr uint32_t n16 = 4;
@@ -96,7 +96,7 @@ TrackingRecHit2DHeterogeneous<Traits>::TrackingRecHit2DHeterogeneous(uint32_t nH
         constexpr
 #endif
         (std::is_same<Traits, cudaCompat::GPUTraits>::value) {
-      cms::cuda::copyAsync(m_view, view, stream);
+      cms::sycltools::copyAsync(m_view, view, stream);
     } else {
       m_view.reset(view.release());  // NOLINT: std::move() breaks CUDA version
     }
@@ -143,7 +143,7 @@ TrackingRecHit2DHeterogeneous<Traits>::TrackingRecHit2DHeterogeneous(uint32_t nH
       constexpr
 #endif
       (std::is_same<Traits, cudaCompat::GPUTraits>::value) {
-    cms::cuda::copyAsync(m_view, view, stream);
+    cms::sycltools::copyAsync(m_view, view, stream);
   } else {
     m_view.reset(view.release());  // NOLINT: std::move() breaks CUDA version
   }

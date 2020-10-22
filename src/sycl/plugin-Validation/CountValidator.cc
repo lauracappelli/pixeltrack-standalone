@@ -34,14 +34,14 @@ private:
 
   edm::EDGetTokenT<DigiClusterCount> digiClusterCountToken_;
 
-  edm::EDGetTokenT<cms::cuda::Product<SiPixelDigisCUDA>> digiToken_;
-  edm::EDGetTokenT<cms::cuda::Product<SiPixelClustersCUDA>> clusterToken_;
+  edm::EDGetTokenT<cms::sycltools::Product<SiPixelDigisCUDA>> digiToken_;
+  edm::EDGetTokenT<cms::sycltools::Product<SiPixelClustersCUDA>> clusterToken_;
 };
 
 CountValidator::CountValidator(edm::ProductRegistry& reg)
     : digiClusterCountToken_(reg.consumes<DigiClusterCount>()),
-      digiToken_(reg.consumes<cms::cuda::Product<SiPixelDigisCUDA>>()),
-      clusterToken_(reg.consumes<cms::cuda::Product<SiPixelClustersCUDA>>()) {}
+      digiToken_(reg.consumes<cms::sycltools::Product<SiPixelDigisCUDA>>()),
+      clusterToken_(reg.consumes<cms::sycltools::Product<SiPixelClustersCUDA>>()) {}
 
 void CountValidator::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
   std::stringstream ss;
@@ -51,7 +51,7 @@ void CountValidator::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) 
 
   {
     auto const& pdigis = iEvent.get(digiToken_);
-    cms::cuda::ScopedContextProduce ctx{pdigis};
+    cms::sycltools::ScopedContextProduce ctx{pdigis};
     auto const& count = iEvent.get(digiClusterCountToken_);
     auto const& digis = ctx.get(iEvent, digiToken_);
     auto const& clusters = ctx.get(iEvent, clusterToken_);

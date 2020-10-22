@@ -110,7 +110,7 @@ void verifyBulk(Assoc const* __restrict__ assoc, AtomicPairCounter const* apc, s
 
 int main() {
 #ifdef CL_SYCL_LANGUAGE_VERSION
-  auto current_device = cms::cuda::currentDevice();
+  auto current_device = cms::sycltools::currentDevice();
 #else
   // make sure cuda emulation is working
   std::cout << "cuda x's " << threadIdx.x << ' ' << blockIdx.x << ' ' << blockDim.x << ' ' << gridDim.x << std::endl;
@@ -177,11 +177,11 @@ int main() {
   std::cout << "filled with " << n << " elements " << double(ave) / n << ' ' << imax << ' ' << nz << std::endl;
 
 #ifdef CL_SYCL_LANGUAGE_VERSION
-  auto v_d = cms::cuda::make_device_unique<std::array<uint16_t, 4>[]>(N, nullptr);
+  auto v_d = cms::sycltools::make_device_unique<std::array<uint16_t, 4>[]>(N, nullptr);
   assert(v_d.get());
-  auto a_d = cms::cuda::make_device_unique<Assoc[]>(1, nullptr);
-  auto sa_d = cms::cuda::make_device_unique<SmallAssoc[]>(1, nullptr);
-  auto ws_d = cms::cuda::make_device_unique<uint8_t[]>(Assoc::wsSize(), nullptr);
+  auto a_d = cms::sycltools::make_device_unique<Assoc[]>(1, nullptr);
+  auto sa_d = cms::sycltools::make_device_unique<SmallAssoc[]>(1, nullptr);
+  auto ws_d = cms::sycltools::make_device_unique<uint8_t[]>(Assoc::wsSize(), nullptr);
 
   /*
   DPCT1003:235: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
@@ -193,7 +193,7 @@ int main() {
   auto v_d = tr.data();
 #endif
 
-  cms::cuda::launchZero(a_d.get(), 0);
+  cms::sycltools::launchZero(a_d.get(), 0);
 
 #ifdef CL_SYCL_LANGUAGE_VERSION
   auto nThreads = 256;
@@ -211,7 +211,7 @@ int main() {
         [=](sycl::nd_item<3> item_ct1) { count(v_d_get_ct0, a_d_get_ct1, N, item_ct1); });
   });
 
-  cms::cuda::launchFinalize(a_d.get(), ws_d.get(), 0);
+  cms::sycltools::launchFinalize(a_d.get(), ws_d.get(), 0);
   dpct::get_default_queue().submit([&](sycl::handler& cgh) {
     auto a_d_get_ct0 = a_d.get();
 
@@ -231,7 +231,7 @@ int main() {
   });
 #else
   count(v_d, a_d.get(), N);
-  cms::cuda::launchFinalize(a_d.get());
+  cms::sycltools::launchFinalize(a_d.get());
   verify(a_d.get());
   fill(v_d, a_d.get(), N);
 #endif
@@ -353,13 +353,13 @@ int main() {
 #else
   dc_d = &dc;
   fillBulk(dc_d, v_d, a_d.get(), N);
-  cms::cuda::finalizeBulk(dc_d, a_d.get());
+  cms::sycltools::finalizeBulk(dc_d, a_d.get());
   verifyBulk(a_d.get(), dc_d);
   memcpy(&la, a_d.get(), sizeof(Assoc));
 
   AtomicPairCounter sdc(0);
   fillBulk(&sdc, v_d, sa_d.get(), N);
-  cms::cuda::finalizeBulk(&sdc, sa_d.get());
+  cms::sycltools::finalizeBulk(&sdc, sa_d.get());
   verifyBulk(sa_d.get(), &sdc);
 
 #endif
@@ -382,14 +382,14 @@ int main() {
 
   // here verify use of block local counters
 #ifdef CL_SYCL_LANGUAGE_VERSION
-  auto m1_d = cms::cuda::make_device_unique<Multiplicity[]>(1, nullptr);
-  auto m2_d = cms::cuda::make_device_unique<Multiplicity[]>(1, nullptr);
+  auto m1_d = cms::sycltools::make_device_unique<Multiplicity[]>(1, nullptr);
+  auto m2_d = cms::sycltools::make_device_unique<Multiplicity[]>(1, nullptr);
 #else
   auto m1_d = std::make_unique<Multiplicity>();
   auto m2_d = std::make_unique<Multiplicity>();
 #endif
-  cms::cuda::launchZero(m1_d.get(), 0);
-  cms::cuda::launchZero(m2_d.get(), 0);
+  cms::sycltools::launchZero(m1_d.get(), 0);
+  cms::sycltools::launchZero(m2_d.get(), 0);
 
 #ifdef CL_SYCL_LANGUAGE_VERSION
   nBlocks = (4 * N + nThreads - 1) / nThreads;
@@ -429,8 +429,8 @@ int main() {
         [=](sycl::nd_item<3> item_ct1) { verifyMulti(m1_d_get_ct0, m2_d_get_ct1, item_ct1); });
   });
 
-  cms::cuda::launchFinalize(m1_d.get(), ws_d.get(), 0);
-  cms::cuda::launchFinalize(m2_d.get(), ws_d.get(), 0);
+  cms::sycltools::launchFinalize(m1_d.get(), ws_d.get(), 0);
+  cms::sycltools::launchFinalize(m2_d.get(), ws_d.get(), 0);
   dpct::get_default_queue().submit([&](sycl::handler& cgh) {
     auto m1_d_get_ct0 = m1_d.get();
     auto m2_d_get_ct1 = m2_d.get();
@@ -453,8 +453,8 @@ int main() {
   countMultiLocal(v_d, m2_d.get(), N);
   verifyMulti(m1_d.get(), m2_d.get());
 
-  cms::cuda::launchFinalize(m1_d.get());
-  cms::cuda::launchFinalize(m2_d.get());
+  cms::sycltools::launchFinalize(m1_d.get());
+  cms::sycltools::launchFinalize(m2_d.get());
   verifyMulti(m1_d.get(), m2_d.get());
 #endif
   return 0;

@@ -24,20 +24,20 @@ private:
   void produce(edm::Event& iEvent, const edm::EventSetup& iSetup) override;
   void endJob() override;
 
-  edm::EDGetTokenT<cms::cuda::Product<SiPixelDigisCUDA>> digiToken_;
-  edm::EDGetTokenT<cms::cuda::Product<SiPixelClustersCUDA>> clusterToken_;
-  edm::EDGetTokenT<cms::cuda::Product<TrackingRecHit2DCUDA>> hitToken_;
+  edm::EDGetTokenT<cms::sycltools::Product<SiPixelDigisCUDA>> digiToken_;
+  edm::EDGetTokenT<cms::sycltools::Product<SiPixelClustersCUDA>> clusterToken_;
+  edm::EDGetTokenT<cms::sycltools::Product<TrackingRecHit2DCUDA>> hitToken_;
 
   uint32_t nDigis;
   uint32_t nModules;
   uint32_t nClusters;
   uint32_t nHits;
-  cms::cuda::host::unique_ptr<uint16_t[]> h_adc;
-  cms::cuda::host::unique_ptr<uint32_t[]> h_clusInModule;
-  cms::cuda::host::unique_ptr<float[]> h_localCoord;
-  cms::cuda::host::unique_ptr<float[]> h_globalCoord;
-  cms::cuda::host::unique_ptr<int32_t[]> h_charge;
-  cms::cuda::host::unique_ptr<int16_t[]> h_size;
+  cms::sycltools::host::unique_ptr<uint16_t[]> h_adc;
+  cms::sycltools::host::unique_ptr<uint32_t[]> h_clusInModule;
+  cms::sycltools::host::unique_ptr<float[]> h_localCoord;
+  cms::sycltools::host::unique_ptr<float[]> h_globalCoord;
+  cms::sycltools::host::unique_ptr<int32_t[]> h_charge;
+  cms::sycltools::host::unique_ptr<int16_t[]> h_size;
 
   static std::map<std::string, SimpleAtomicHisto> histos;
 };
@@ -63,16 +63,16 @@ std::map<std::string, SimpleAtomicHisto> HistoValidator::histos = {
 };
 
 HistoValidator::HistoValidator(edm::ProductRegistry& reg)
-    : digiToken_(reg.consumes<cms::cuda::Product<SiPixelDigisCUDA>>()),
-      clusterToken_(reg.consumes<cms::cuda::Product<SiPixelClustersCUDA>>()),
-      hitToken_(reg.consumes<cms::cuda::Product<TrackingRecHit2DCUDA>>())
+    : digiToken_(reg.consumes<cms::sycltools::Product<SiPixelDigisCUDA>>()),
+      clusterToken_(reg.consumes<cms::sycltools::Product<SiPixelClustersCUDA>>()),
+      hitToken_(reg.consumes<cms::sycltools::Product<TrackingRecHit2DCUDA>>())
 {}
 
 void HistoValidator::acquire(const edm::Event& iEvent,
                              const edm::EventSetup& iSetup,
                              edm::WaitingTaskWithArenaHolder waitingTaskHolder) {
   auto const& pdigis = iEvent.get(digiToken_);
-  cms::cuda::ScopedContextAcquire ctx{pdigis, std::move(waitingTaskHolder)};
+  cms::sycltools::ScopedContextAcquire ctx{pdigis, std::move(waitingTaskHolder)};
   auto const& digis = ctx.get(iEvent, digiToken_);
   auto const& clusters = ctx.get(iEvent, clusterToken_);
   auto const& hits = ctx.get(iEvent, hitToken_);
@@ -82,7 +82,7 @@ void HistoValidator::acquire(const edm::Event& iEvent,
   h_adc = digis.adcToHostAsync(ctx.stream());
 
   nClusters = clusters.nClusters();
-  h_clusInModule = cms::cuda::make_host_unique<uint32_t[]>(nModules, ctx.stream());
+  h_clusInModule = cms::sycltools::make_host_unique<uint32_t[]>(nModules, ctx.stream());
   cudaCheck(cudaMemcpyAsync(
       h_clusInModule.get(), clusters.clusInModule(), sizeof(uint32_t) * nModules, cudaMemcpyDefault, ctx.stream()));
 

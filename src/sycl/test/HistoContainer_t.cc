@@ -17,7 +17,7 @@ void go() {
 
   constexpr int N = 12000;
   T v[N];
-  auto v_d = cms::cuda::make_device_unique<T[]>(N, nullptr);
+  auto v_d = cms::sycltools::make_device_unique<T[]>(N, nullptr);
 
   /*
   DPCT1003:156: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
@@ -34,10 +34,10 @@ void go() {
             << (std::numeric_limits<T>::max() - std::numeric_limits<T>::min()) / Hist::nbins() << std::endl;
 
   Hist h;
-  auto h_d = cms::cuda::make_device_unique<Hist[]>(1, nullptr);
-  auto ws_d = cms::cuda::make_device_unique<uint8_t[]>(Hist::wsSize(), nullptr);
+  auto h_d = cms::sycltools::make_device_unique<Hist[]>(1, nullptr);
+  auto ws_d = cms::sycltools::make_device_unique<uint8_t[]>(Hist::wsSize(), nullptr);
 
-  auto off_d = cms::cuda::make_device_unique<uint32_t[]>(nParts + 1, nullptr);
+  auto off_d = cms::sycltools::make_device_unique<uint32_t[]>(nParts + 1, nullptr);
 
   for (int it = 0; it < 5; ++it) {
     offsets[0] = 0;
@@ -78,7 +78,7 @@ void go() {
     */
     cudaCheck((dpct::get_default_queue().memcpy(v_d.get(), v, N * sizeof(T)).wait(), 0));
 
-    cms::cuda::fillManyFromVector(h_d.get(), ws_d.get(), nParts, v_d.get(), off_d.get(), offsets[10], 256, 0);
+    cms::sycltools::fillManyFromVector(h_d.get(), ws_d.get(), nParts, v_d.get(), off_d.get(), offsets[10], 256, 0);
     /*
     DPCT1003:159: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
     */

@@ -113,7 +113,7 @@ void go() {
   constexpr int N = 12000;
   T v[N];
 
-  auto v_d = cms::cuda::make_device_unique<T[]>(N, nullptr);
+  auto v_d = cms::sycltools::make_device_unique<T[]>(N, nullptr);
   assert(v_d.get());
 
   using Hist = HistoContainer<T, NBINS, N, S>;
@@ -135,7 +135,7 @@ void go() {
     */
     cudaCheck((dpct::get_default_queue().memcpy(v_d.get(), v, N * sizeof(T)).wait(), 0));
     assert(v_d.get());
-    cms::cuda::launch(mykernel<T, NBINS, S, DELTA>, {1, 256}, v_d.get(), N);
+    cms::sycltools::launch(mykernel<T, NBINS, S, DELTA>, {1, 256}, v_d.get(), N);
   }
 }
 

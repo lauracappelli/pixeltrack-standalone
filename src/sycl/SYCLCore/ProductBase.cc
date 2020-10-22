@@ -1,15 +1,15 @@
 #include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
-#include "SYCLCore/ProductBase.h"
-#include "SYCLCore/eventWorkHasCompleted.h"
 
-namespace cms::cuda {
+#include "SYCLCore/ProductBase.h"
+
+namespace cms::sycltools {
   bool ProductBase::isAvailable() const {
     // if default-constructed, the product is not available
     if (not event_) {
       return false;
     }
-    return eventWorkHasCompleted(event_.get());
+    return event_->get_info<sycl::info::event::command_execution_status>() ==
+           sycl::info::event_command_status::complete;
   }
 
   ProductBase::~ProductBase() {
@@ -20,12 +20,8 @@ namespace cms::cuda {
 
     // TODO: a callback notifying a WaitingTaskHolder (or similar)
     // would avoid blocking the CPU, but would also require more work.
-    //
-    // Intentionally not checking the return value to avoid throwing
-    // exceptions. If this call would fail, we should get failures
-    // elsewhere as well.
     if (event_) {
-      event_.get().wait_and_throw();
+      event_->wait_and_throw();
     }
   }
-}  // namespace cms::cuda
+}  // namespace cms::sycltools

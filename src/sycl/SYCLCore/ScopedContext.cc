@@ -1,87 +1,41 @@
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
-#include "SYCLCore/ScopedContext.h"
-
-#include "SYCLCore/StreamCache.h"
-#include "SYCLCore/cudaCheck.h"
-
-#include "chooseDevice.h"
+#include <chrono>
 #include <future>
 
-#include <chrono>
+#include <CL/sycl.hpp>
 
-namespace {
-  struct CallbackData {
-    edm::WaitingTaskWithArenaHolder holder;
-    int device;
-  };
+#include "SYCLCore/ScopedContext.h"
+#include "chooseDevice.h"
 
-  void CUDART_CB cudaScopedContextCallback(sycl::queue* streamId, int status, void* data) {
-    std::unique_ptr<CallbackData> guard{reinterpret_cast<CallbackData*>(data)};
-    edm::WaitingTaskWithArenaHolder& waitingTaskHolder = guard->holder;
-    int device = guard->device;
-    if (status == 0) {
-      //std::cout << " GPU kernel finished (in callback) device " << device << " CUDA stream "
-      //          << streamId << std::endl;
-      waitingTaskHolder.doneWaiting(nullptr);
-    } else {
-      // wrap the exception in a try-catch block to let GDB "catch throw" break on it
-      try {
-        /*
-        DPCT1009:143: SYCL uses exceptions to report errors and does not use the error codes. The original code was commented out and a warning string was inserted. You need to rewrite this code.
-        */
-        auto error = "cudaGetErrorName not supported" /*cudaGetErrorName(status)*/;
-        /*
-        DPCT1009:144: SYCL uses exceptions to report errors and does not use the error codes. The original code was commented out and a warning string was inserted. You need to rewrite this code.
-        */
-        auto message = "cudaGetErrorString not supported" /*cudaGetErrorString(status)*/;
-        throw std::runtime_error("Callback of CUDA stream " +
-                                 std::to_string(reinterpret_cast<unsigned long>(streamId)) + " in device " +
-                                 std::to_string(device) + " error " + std::string(error) + ": " + std::string(message));
-      } catch (std::exception&) {
-        waitingTaskHolder.doneWaiting(std::current_exception());
-      }
-    }
-  }
-}  // namespace
-
-namespace cms::cuda {
+namespace cms::sycltools {
   namespace impl {
-    ScopedContextBase::ScopedContextBase(edm::StreamID streamID) : currentDevice_(chooseDevice(streamID)) {
-      /*
-      DPCT1003:145: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-      */
-      cudaCheck((dpct::dev_mgr::instance().select_device(currentDevice_), 0));
-      stream_ = getStreamCache().get();
-    }
 
-    ScopedContextBase::ScopedContextBase(const ProductBase& data) : currentDevice_(data.device()) {
-      /*
-      DPCT1003:146: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-      */
-      cudaCheck((dpct::dev_mgr::instance().select_device(currentDevice_), 0));
-      if (data.mayReuseStream()) {
-        stream_ = data.streamPtr();
-      } else {
-        stream_ = getStreamCache().get();
+    void sycl_exception_handler(cl::sycl::exception_list exceptions) {
+      std::ostringstream msg;
+      msg << "Caught asynchronous SYCL exception:";
+      for (auto const &exc_ptr : exceptions) {
+        try {
+          std::rethrow_exception(exc_ptr);
+        } catch (cl::sycl::exception const &e) {
+          msg << '\n' << e.what();
+        }
+        throw std::runtime_error(msg.str());
       }
     }
 
-    ScopedContextBase::ScopedContextBase(int device, SharedStreamPtr stream)
-        : currentDevice_(device), stream_(std::move(stream)) {
-      /*
-      DPCT1003:147: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-      */
-      cudaCheck((dpct::dev_mgr::instance().select_device(currentDevice_), 0));
-    }
+    ScopedContextBase::ScopedContextBase(edm::StreamID streamID)
+        : stream_(chooseDevice(streamID), sycl_exception_handler, sycl::property::queue::in_order()) {}
+
+    ScopedContextBase::ScopedContextBase(ProductBase const &data)
+        : stream_(data.mayReuseStream()
+                      ? data.stream()
+                      : sycl::queue{data.device(), sycl_exception_handler, sycl::property::queue::in_order()}) {}
+
+    ScopedContextBase::ScopedContextBase(sycl::queue stream) : stream_(std::move(stream)) {}
 
     ////////////////////
 
-    void ScopedContextGetterBase::synchronizeStreams(int dataDevice,
-                                                     sycl::queue* dataStream,
-                                                     bool available,
-                                                     sycl::event dataEvent) {
-      if (dataDevice != device()) {
+    void ScopedContextGetterBase::synchronizeStreams(sycl::queue dataStream, bool available, sycl::event dataEvent) {
+      if (dataStream.get_device() != device()) {
         // Eventually replace with prefetch to current device (assuming unified memory works)
         // If we won't go to unified memory, need to figure out something else...
         throw std::runtime_error("Handling data from multiple devices is not yet supported");
@@ -95,31 +49,25 @@ namespace cms::cuda {
           // wait for an event, so all subsequent work in the stream
           // will run only after the event has "occurred" (i.e. data
           // product became available).
-          /*
-          DPCT1003:148: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-          */
-          cudaCheck((dataEvent.wait(), 0), "Failed to make a stream to wait for an event");
+          dataEvent.wait();
         }
       }
     }
 
-    void ScopedContextHolderHelper::enqueueCallback(int device, sycl::queue* stream) {
-      /*
-      DPCT1003:149: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-      */
-      cudaCheck((std::async([&]() {
-                   stream->wait(); cudaScopedContextCallback(stream, 0, new CallbackData{waitingTaskHolder_, device});
-                 }),
-                 0));
+    void ScopedContextHolderHelper::enqueueCallback(sycl::queue stream) {
+      std::async([&]() {
+        stream.wait();
+        waitingTaskHolder_.doneWaiting(nullptr);
+      });
     }
   }  // namespace impl
 
   ////////////////////
 
   ScopedContextAcquire::~ScopedContextAcquire() {
-    holderHelper_.enqueueCallback(device(), stream());
+    holderHelper_.enqueueCallback(stream());
     if (contextState_) {
-      contextState_->set(device(), std::move(streamPtr()));
+      contextState_->set(stream());
     }
   }
 
@@ -132,16 +80,11 @@ namespace cms::cuda {
   ////////////////////
 
   ScopedContextProduce::~ScopedContextProduce() {
-    // Intentionally not checking the return value to avoid throwing
-    // exceptions. If this call would fail, we should get failures
-    // elsewhere as well.
-    /*
-    DPCT1012:150: Detected kernel execution time measurement pattern and generated an initial code for time measurements in SYCL. You can change the way time is measured depending on your goals.
-    */
-    cudaEventRecord(event_.get(), stream());
+    // the barrier should be a no-op on an ordered queue, but is used to mark the end of the data processing
+    event_ = stream().submit_barrier();
   }
 
   ////////////////////
 
-  ScopedContextTask::~ScopedContextTask() { holderHelper_.enqueueCallback(device(), stream()); }
-}  // namespace cms::cuda
+  ScopedContextTask::~ScopedContextTask() { holderHelper_.enqueueCallback(stream()); }
+}  // namespace cms::sycltools

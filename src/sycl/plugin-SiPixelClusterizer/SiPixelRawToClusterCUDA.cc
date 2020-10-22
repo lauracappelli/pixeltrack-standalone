@@ -33,12 +33,12 @@ private:
                edm::WaitingTaskWithArenaHolder waitingTaskHolder) override;
   void produce(edm::Event& iEvent, const edm::EventSetup& iSetup) override;
 
-  cms::cuda::ContextState ctxState_;
+  cms::sycltools::ContextState ctxState_;
 
   edm::EDGetTokenT<FEDRawDataCollection> rawGetToken_;
-  edm::EDPutTokenT<cms::cuda::Product<SiPixelDigisCUDA>> digiPutToken_;
-  edm::EDPutTokenT<cms::cuda::Product<SiPixelDigiErrorsCUDA>> digiErrorPutToken_;
-  edm::EDPutTokenT<cms::cuda::Product<SiPixelClustersCUDA>> clusterPutToken_;
+  edm::EDPutTokenT<cms::sycltools::Product<SiPixelDigisCUDA>> digiPutToken_;
+  edm::EDPutTokenT<cms::sycltools::Product<SiPixelDigiErrorsCUDA>> digiErrorPutToken_;
+  edm::EDPutTokenT<cms::sycltools::Product<SiPixelClustersCUDA>> clusterPutToken_;
 
   pixelgpudetails::SiPixelRawToClusterGPUKernel gpuAlgo_;
   std::unique_ptr<pixelgpudetails::SiPixelRawToClusterGPUKernel::WordFedAppender> wordFedAppender_;
@@ -50,12 +50,12 @@ private:
 
 SiPixelRawToClusterCUDA::SiPixelRawToClusterCUDA(edm::ProductRegistry& reg)
     : rawGetToken_(reg.consumes<FEDRawDataCollection>()),
-      digiPutToken_(reg.produces<cms::cuda::Product<SiPixelDigisCUDA>>()),
-      clusterPutToken_(reg.produces<cms::cuda::Product<SiPixelClustersCUDA>>()),
+      digiPutToken_(reg.produces<cms::sycltools::Product<SiPixelDigisCUDA>>()),
+      clusterPutToken_(reg.produces<cms::sycltools::Product<SiPixelClustersCUDA>>()),
       includeErrors_(true),
       useQuality_(true) {
   if (includeErrors_) {
-    digiErrorPutToken_ = reg.produces<cms::cuda::Product<SiPixelDigiErrorsCUDA>>();
+    digiErrorPutToken_ = reg.produces<cms::sycltools::Product<SiPixelDigiErrorsCUDA>>();
   }
 
   wordFedAppender_ = std::make_unique<pixelgpudetails::SiPixelRawToClusterGPUKernel::WordFedAppender>();
@@ -64,7 +64,7 @@ SiPixelRawToClusterCUDA::SiPixelRawToClusterCUDA(edm::ProductRegistry& reg)
 void SiPixelRawToClusterCUDA::acquire(const edm::Event& iEvent,
                                       const edm::EventSetup& iSetup,
                                       edm::WaitingTaskWithArenaHolder waitingTaskHolder) {
-  cms::cuda::ScopedContextAcquire ctx{iEvent.streamID(), std::move(waitingTaskHolder), ctxState_};
+  cms::sycltools::ScopedContextAcquire ctx{iEvent.streamID(), std::move(waitingTaskHolder), ctxState_};
 
   auto const& hgpuMap = iSetup.get<SiPixelFedCablingMapGPUWrapper>();
   if (hgpuMap.hasQuality() != useQuality_) {
@@ -159,7 +159,7 @@ void SiPixelRawToClusterCUDA::acquire(const edm::Event& iEvent,
 }
 
 void SiPixelRawToClusterCUDA::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
-  cms::cuda::ScopedContextProduce ctx{ctxState_};
+  cms::sycltools::ScopedContextProduce ctx{ctxState_};
 
   auto tmp = gpuAlgo_.getResults();
   ctx.emplace(iEvent, digiPutToken_, std::move(tmp.first));
