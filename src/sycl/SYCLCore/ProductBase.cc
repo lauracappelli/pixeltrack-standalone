@@ -1,16 +1,10 @@
 #include <CL/sycl.hpp>
 
 #include "SYCLCore/ProductBase.h"
+#include "SYCLCore/eventWorkHasCompleted.h"
 
 namespace cms::sycltools {
-  bool ProductBase::isAvailable() const {
-    // if default-constructed, the product is not available
-    if (not event_) {
-      return false;
-    }
-    return event_->get_info<sycl::info::event::command_execution_status>() ==
-           sycl::info::event_command_status::complete;
-  }
+  bool ProductBase::isAvailable() const { return eventWorkHasCompleted(event_); }
 
   ProductBase::~ProductBase() {
     // Make sure that the production of the product in the GPU is

@@ -38,36 +38,31 @@ PixelCPEFast::PixelCPEFast(std::string const &path) {
   };
 }
 
-const pixelCPEforGPU::ParamsOnGPU *PixelCPEFast::getGPUProductAsync(sycl::queue *cudaStream) const {
-  const auto &data = gpuData_.dataForCurrentDeviceAsync(
-      cudaStream,
-      [this](GPUData &data, sycl::queue *stream) {
-        // and now copy to device...
-        data.h_paramsOnGPU.m_commonParams =
-            (const pixelCPEforGPU::CommonParams *)sycl::malloc_device(sizeof(pixelCPEforGPU::CommonParams), *stream);
-        data.h_paramsOnGPU.m_detParams = (const pixelCPEforGPU::DetParams *)sycl::malloc_device(
-            this->m_detParamsGPU.size() * sizeof(pixelCPEforGPU::DetParams), *stream);
-        data.h_paramsOnGPU.m_averageGeometry = (const phase1PixelTopology::AverageGeometry *)sycl::malloc_device(
-            sizeof(pixelCPEforGPU::AverageGeometry), *stream);
-        data.h_paramsOnGPU.m_layerGeometry =
-            (const pixelCPEforGPU::LayerGeometry *)sycl::malloc_device(sizeof(pixelCPEforGPU::LayerGeometry), *stream);
-        data.d_paramsOnGPU = sycl::malloc_device<pixelCPEforGPU::ParamsOnGPU>(1, *stream);
+const pixelCPEforGPU::ParamsOnGPU *PixelCPEFast::getGPUProductAsync(sycl::queue stream) const {
+  const auto &data = gpuData_.dataForCurrentDeviceAsync(stream, [this](GPUData &data, sycl::queue stream) {
+    // and now copy to device...
+    data.h_paramsOnGPU.m_commonParams =
+        sycl::malloc_device<pixelCPEforGPU::CommonParams>(sizeof(pixelCPEforGPU::CommonParams), stream);
+    data.h_paramsOnGPU.m_detParams = sycl::malloc_device<pixelCPEforGPU::DetParams>(
+        this->m_detParamsGPU.size() * sizeof(pixelCPEforGPU::DetParams), stream);
+    data.h_paramsOnGPU.m_averageGeometry =
+        sycl::malloc_device<phase1PixelTopology::AverageGeometry>(sizeof(pixelCPEforGPU::AverageGeometry), stream);
+    data.h_paramsOnGPU.m_layerGeometry =
+        sycl::malloc_device<pixelCPEforGPU::LayerGeometry>(sizeof(pixelCPEforGPU::LayerGeometry), stream);
+    data.d_paramsOnGPU = sycl::malloc_device<pixelCPEforGPU::ParamsOnGPU>(1, stream);
 
-        stream->memcpy(data.d_paramsOnGPU, &data.h_paramsOnGPU, sizeof(pixelCPEforGPU::ParamsOnGPU));
-        stream->memcpy(
-            (void *)data.h_paramsOnGPU.m_commonParams, &this->m_commonParamsGPU, sizeof(pixelCPEforGPU::CommonParams));
-        stream->memcpy((void *)data.h_paramsOnGPU.m_averageGeometry,
-                       &this->m_averageGeometry,
-                       sizeof(pixelCPEforGPU::AverageGeometry));
-        stream->memcpy(
-            (void *)data.h_paramsOnGPU.m_layerGeometry, &this->m_layerGeometry, sizeof(pixelCPEforGPU::LayerGeometry));
-        stream->memcpy((void *)data.h_paramsOnGPU.m_detParams,
-                       this->m_detParamsGPU.data(),
-                       this->m_detParamsGPU.size() * sizeof(pixelCPEforGPU::DetParams));
-      } catch (sycl::exception const &exc) {
-        std::cerr << exc.what() << "Exception caught at file:" << __FILE__ << ", line:" << __LINE__ << std::endl;
-        std::exit(1);
-      });
+    stream.memcpy(data.d_paramsOnGPU, &data.h_paramsOnGPU, sizeof(pixelCPEforGPU::ParamsOnGPU));
+    stream.memcpy(
+        (void *)data.h_paramsOnGPU.m_commonParams, &this->m_commonParamsGPU, sizeof(pixelCPEforGPU::CommonParams));
+    stream.memcpy((void *)data.h_paramsOnGPU.m_averageGeometry,
+                  &this->m_averageGeometry,
+                  sizeof(pixelCPEforGPU::AverageGeometry));
+    stream.memcpy(
+        (void *)data.h_paramsOnGPU.m_layerGeometry, &this->m_layerGeometry, sizeof(pixelCPEforGPU::LayerGeometry));
+    stream.memcpy((void *)data.h_paramsOnGPU.m_detParams,
+                  this->m_detParamsGPU.data(),
+                  this->m_detParamsGPU.size() * sizeof(pixelCPEforGPU::DetParams));
+  });
   return data.d_paramsOnGPU;
 }
 

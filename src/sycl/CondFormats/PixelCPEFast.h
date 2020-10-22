@@ -17,7 +17,7 @@ public:
 
   // The return value can only be used safely in kernels launched on
   // the same cudaStream, or after cudaStreamSynchronize.
-  const pixelCPEforGPU::ParamsOnGPU *getGPUProductAsync(sycl::queue *cudaStream) const;
+  const pixelCPEforGPU::ParamsOnGPU *getGPUProductAsync(sycl::queue stream) const;
 
   pixelCPEforGPU::ParamsOnGPU const &getCPUProduct() const { return cpuData_; }
 

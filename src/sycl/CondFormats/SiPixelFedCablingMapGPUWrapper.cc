@@ -25,34 +25,23 @@ SiPixelFedCablingMapGPUWrapper::~SiPixelFedCablingMapGPUWrapper() {
   sycl::free(cablingMapHost, dpct::get_default_queue());
 }
 
-const SiPixelFedCablingMapGPU* SiPixelFedCablingMapGPUWrapper::getGPUProductAsync(sycl::queue* cudaStream) const {
-  const auto& data = gpuData_.dataForCurrentDeviceAsync(
-      cudaStream,
-      [this](GPUData& data, sycl::queue* stream) {
-        // allocate
-        data.cablingMapDevice = sycl::malloc_device<SiPixelFedCablingMapGPU>(1, dpct::get_default_queue());
+const SiPixelFedCablingMapGPU* SiPixelFedCablingMapGPUWrapper::getGPUProductAsync(sycl::queue stream) const {
+  const auto& data = gpuData_.dataForCurrentDeviceAsync(stream, [this](GPUData& data, sycl::queue stream) {
+    // allocate
+    data.cablingMapDevice = sycl::malloc_device<SiPixelFedCablingMapGPU>(1, stream);
 
-        // transfer
-        stream->memcpy(data.cablingMapDevice, this->cablingMapHost, sizeof(SiPixelFedCablingMapGPU));
-      } catch (sycl::exception const& exc) {
-        std::cerr << exc.what() << "Exception caught at file:" << __FILE__ << ", line:" << __LINE__ << std::endl;
-        std::exit(1);
-      });
+    // transfer
+    stream.memcpy(data.cablingMapDevice, this->cablingMapHost, sizeof(SiPixelFedCablingMapGPU));
+  });
   return data.cablingMapDevice;
 }
 
-const unsigned char* SiPixelFedCablingMapGPUWrapper::getModToUnpAllAsync(sycl::queue* cudaStream) const {
-  const auto& data = modToUnp_.dataForCurrentDeviceAsync(
-      cudaStream,
-      [this](ModulesToUnpack& data, sycl::queue* stream) {
-        data.modToUnpDefault =
-            (unsigned char*)sycl::malloc_device(pixelgpudetails::MAX_SIZE_BYTE_BOOL, dpct::get_default_queue());
-        stream->memcpy(
-            data.modToUnpDefault, this->modToUnpDefault.data(), this->modToUnpDefault.size() * sizeof(unsigned char));
-      } catch (sycl::exception const& exc) {
-        std::cerr << exc.what() << "Exception caught at file:" << __FILE__ << ", line:" << __LINE__ << std::endl;
-        std::exit(1);
-      });
+const unsigned char* SiPixelFedCablingMapGPUWrapper::getModToUnpAllAsync(sycl::queue stream) const {
+  const auto& data = modToUnp_.dataForCurrentDeviceAsync(stream, [this](ModulesToUnpack& data, sycl::queue stream) {
+    data.modToUnpDefault = sycl::malloc_device<unsigned char>(pixelgpudetails::MAX_SIZE_BYTE_BOOL, stream);
+    stream.memcpy(
+        data.modToUnpDefault, this->modToUnpDefault.data(), this->modToUnpDefault.size() * sizeof(unsigned char));
+  });
   return data.modToUnpDefault;
 }
 

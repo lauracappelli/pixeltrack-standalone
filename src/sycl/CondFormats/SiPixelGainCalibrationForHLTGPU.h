@@ -13,7 +13,7 @@ public:
   explicit SiPixelGainCalibrationForHLTGPU(SiPixelGainForHLTonGPU const &gain, std::vector<char> gainData);
   ~SiPixelGainCalibrationForHLTGPU();
 
-  const SiPixelGainForHLTonGPU *getGPUProductAsync(sycl::queue *cudaStream) const;
+  const SiPixelGainForHLTonGPU *getGPUProductAsync(sycl::queue stream) const;
   const SiPixelGainForHLTonGPU *getCPUProduct() const { return gainForHLTonHost_; }
 
 private:
