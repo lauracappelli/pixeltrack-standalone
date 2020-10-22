@@ -1,0 +1,9 @@
+cuda_EXTERNAL_DEPENDS := TBB CUDA CUB
+BeamSpotProducer_DEPENDS := Framework SYCLCore SYCLDataFormats
+SYCLCore_DEPENDS := Framework
+SYCLDataFormats_DEPENDS := SYCLCore DataFormats
+CondFormats_DEPENDS := SYCLCore
+SiPixelClusterizer_DEPENDS := Framework SYCLCore SYCLDataFormats CondFormats DataFormats
+SiPixelRawToDigi_DEPENDS := Framework SYCLCore SYCLDataFormats CondFormats DataFormats
+SiPixelRecHits_DEPENDS := Framework SYCLCore SYCLDataFormats CondFormats
+Validation_DEPENDS := Framework SYCLCore SYCLDataFormats
