@@ -81,8 +81,7 @@ void HistoValidator::acquire(const edm::Event& iEvent,
 
   nClusters = clusters.nClusters();
   h_clusInModule = cms::sycltools::make_host_unique<uint32_t[]>(nModules, ctx.stream());
-  cudaMemcpyAsync(
-      h_clusInModule.get(), clusters.clusInModule(), sizeof(uint32_t) * nModules, cudaMemcpyDefault, ctx.stream());
+  ctx.stream().memcpy(h_clusInModule.get(), clusters.clusInModule(), sizeof(uint32_t) * nModules);
 
   nHits = hits.nHits();
   h_localCoord = hits.localCoordToHostAsync(ctx.stream());

@@ -136,7 +136,7 @@ void multiBlockPrefixScan(T const* __restrict__ ci,
                           bool* isLastBlockDone,
                           T* psum) {
   // first each block does a scan of size 1024; (better be enough blocks....)
-  assert(1024 * item_ct1.get_group_range(2) >= size);
+  assert(size > 0 && 1024 * item_ct1.get_group_range(2) >= (unsigned int) size);
   int off = 1024 * item_ct1.get_group(2);
   if (size - off > 0)
     blockPrefixScan(ci + off, co + off, sycl::min(1024, size - off), item_ct1, ws);
