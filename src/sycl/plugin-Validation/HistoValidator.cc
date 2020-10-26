@@ -1,17 +1,17 @@
+#include <fstream>
+#include <map>
+
+#include "Framework/EDProducer.h"
+#include "Framework/Event.h"
+#include "Framework/EventSetup.h"
+#include "Framework/PluginFactory.h"
 #include "SYCLCore/Product.h"
 #include "SYCLCore/ScopedContext.h"
 #include "SYCLDataFormats/SiPixelClustersCUDA.h"
 #include "SYCLDataFormats/SiPixelDigisCUDA.h"
 #include "SYCLDataFormats/TrackingRecHit2DCUDA.h"
-#include "Framework/EventSetup.h"
-#include "Framework/Event.h"
-#include "Framework/PluginFactory.h"
-#include "Framework/EDProducer.h"
 
 #include "SimpleAtomicHisto.h"
-
-#include <map>
-#include <fstream>
 
 class HistoValidator : public edm::EDProducerExternalWork {
 public:
@@ -126,7 +126,7 @@ void HistoValidator::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) 
 }
 
 void HistoValidator::endJob() {
-  std::ofstream out("histograms_cuda.txt");
+  std::ofstream out("histograms_sycl.txt");
   for (auto const& elem : histos) {
     out << elem.first << " " << elem.second << "\n";
   }

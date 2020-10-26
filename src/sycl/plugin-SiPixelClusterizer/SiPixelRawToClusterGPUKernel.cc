@@ -41,11 +41,11 @@ namespace pixelgpudetails {
 
   SiPixelRawToClusterGPUKernel::WordFedAppender::WordFedAppender() {
     /*
-    DPCT1048:180: The original value cudaHostAllocWriteCombined is not meaningful in the migrated code and was removed or replaced with 0. You may need to check the migrated code.
+    DPCT1048:160: The original value cudaHostAllocWriteCombined is not meaningful in the migrated code and was removed or replaced with 0. You may need to check the migrated code.
     */
     word_ = cms::sycltools::make_host_noncached_unique<unsigned int[]>(MAX_FED_WORDS, 0);
     /*
-    DPCT1048:181: The original value cudaHostAllocWriteCombined is not meaningful in the migrated code and was removed or replaced with 0. You may need to check the migrated code.
+    DPCT1048:161: The original value cudaHostAllocWriteCombined is not meaningful in the migrated code and was removed or replaced with 0. You may need to check the migrated code.
     */
     fedId_ = cms::sycltools::make_host_noncached_unique<unsigned char[]>(MAX_FED_WORDS, 0);
   }
@@ -158,7 +158,7 @@ namespace pixelgpudetails {
       case (1): {
         if (debug)
           /*
-          DPCT1015:185: Output needs adjustment.
+          DPCT1015:173: Output needs adjustment.
           */
           stream_ct1 << "Error in Fed: %i, invalid channel Id (errorType = 35\n)";
         errorType = 35;
@@ -167,7 +167,7 @@ namespace pixelgpudetails {
       case (2): {
         if (debug)
           /*
-          DPCT1015:186: Output needs adjustment.
+          DPCT1015:174: Output needs adjustment.
           */
           stream_ct1 << "Error in Fed: %i, invalid ROC Id (errorType = 36)\n";
         errorType = 36;
@@ -176,7 +176,7 @@ namespace pixelgpudetails {
       case (3): {
         if (debug)
           /*
-          DPCT1015:187: Output needs adjustment.
+          DPCT1015:175: Output needs adjustment.
           */
           stream_ct1 << "Error in Fed: %i, invalid dcol/pixel value (errorType = 37)\n";
         errorType = 37;
@@ -185,7 +185,7 @@ namespace pixelgpudetails {
       case (4): {
         if (debug)
           /*
-          DPCT1015:188: Output needs adjustment.
+          DPCT1015:176: Output needs adjustment.
           */
           stream_ct1 << "Error in Fed: %i, dcol/pixel read out of order (errorType = 38)\n";
         errorType = 38;
@@ -194,7 +194,7 @@ namespace pixelgpudetails {
       default:
         if (debug)
           /*
-          DPCT1015:189: Output needs adjustment.
+          DPCT1015:177: Output needs adjustment.
           */
           stream_ct1 << "Cabling check returned unexpected result, status = %i\n";
     };
@@ -466,7 +466,7 @@ namespace pixelgpudetails {
             err->push_back(PixelErrorCompact{rawId, ww, error, fedId});
             if (debug)
               /*
-              DPCT1015:190: Output needs adjustment.
+              DPCT1015:178: Output needs adjustment.
               */
               stream_ct1 << "BPIX1  Error status: %i\n";
             continue;
@@ -485,7 +485,7 @@ namespace pixelgpudetails {
           err->push_back(PixelErrorCompact{rawId, ww, error, fedId});
           if (debug)
             /*
-            DPCT1015:191: Output needs adjustment.
+            DPCT1015:179: Output needs adjustment.
             */
             stream_ct1 << "Error status: %i %d %d %d %d\n";
           continue;
@@ -506,10 +506,11 @@ namespace pixelgpudetails {
   void fillHitsModuleStart(uint32_t const *__restrict__ cluStart,
                            uint32_t *__restrict__ moduleStart,
                            sycl::nd_item<3> item_ct1,
+                           sycl::stream stream_ct1,
                            uint32_t *ws) {
     assert(gpuClustering::MaxNumModules < 2048);  // easy to extend at least till 32*1024
-    assert(1 == gridDim.x);
-    assert(0 == blockIdx.x);
+    assert(1 == item_ct1.get_group_range(2));
+    assert(0 == item_ct1.get_group(2));
 
     int first = item_ct1.get_local_id(2);
 
@@ -518,8 +519,8 @@ namespace pixelgpudetails {
       moduleStart[i + 1] = sycl::min(gpuClustering::maxHitsInModule(), (const unsigned int)(cluStart[i]));
     }
 
-    blockPrefixScan(moduleStart + 1, moduleStart + 1, 1024, item_ct1, ws);
-    blockPrefixScan(moduleStart + 1025, moduleStart + 1025, gpuClustering::MaxNumModules - 1024, item_ct1, ws);
+    blockPrefixScan(moduleStart + 1, moduleStart + 1, 1024, ws, item_ct1);
+    blockPrefixScan(moduleStart + 1025, moduleStart + 1025, gpuClustering::MaxNumModules - 1024, ws, item_ct1);
 
     for (int i = first + 1025, iend = gpuClustering::MaxNumModules + 1; i < iend;
          i += item_ct1.get_local_range().get(2)) {
@@ -529,19 +530,22 @@ namespace pixelgpudetails {
 
 #ifdef GPU_DEBUG
     assert(0 == moduleStart[0]);
-    auto c0 = std::min(gpuClustering::maxHitsInModule(), cluStart[0]);
+    auto c0 = sycl::min(gpuClustering::maxHitsInModule(), (const unsigned int)(cluStart[0]));
     assert(c0 == moduleStart[1]);
     assert(moduleStart[1024] >= moduleStart[1023]);
     assert(moduleStart[1025] >= moduleStart[1024]);
     assert(moduleStart[gpuClustering::MaxNumModules] >= moduleStart[1025]);
 
-    for (int i = first, iend = gpuClustering::MaxNumModules + 1; i < iend; i += blockDim.x) {
+    for (int i = first, iend = gpuClustering::MaxNumModules + 1; i < iend; i += item_ct1.get_local_range().get(2)) {
       if (0 != i)
         assert(moduleStart[i] >= moduleStart[i - i]);
       // [BPX1, BPX2, BPX3, BPX4,  FP1,  FP2,  FP3,  FN1,  FN2,  FN3, LAST_VALID]
       // [   0,   96,  320,  672, 1184, 1296, 1408, 1520, 1632, 1744,       1856]
       if (i == 96 || i == 1184 || i == 1744 || i == gpuClustering::MaxNumModules)
-        printf("moduleStart %d %d\n", i, moduleStart[i]);
+        /*
+        DPCT1015:180: Output needs adjustment.
+        */
+        stream_ct1 << "moduleStart %d %d\n";
     }
 #endif
 
@@ -594,7 +598,7 @@ namespace pixelgpudetails {
 
       // Launch rawToDigi kernel
       /*
-      DPCT1049:194: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
+      DPCT1049:183: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
       stream.submit([&](sycl::handler &cgh) {
         sycl::stream stream_ct1(64 * 1024, 80, cgh);
@@ -632,7 +636,7 @@ namespace pixelgpudetails {
                          });
       });
 #ifdef GPU_DEBUG
-      cudaDeviceSynchronize();
+      stream.wait_and_throw();
 #endif
 
       if (includeErrors) {
@@ -649,7 +653,7 @@ namespace pixelgpudetails {
           (std::max(int(wordCounter), int(gpuClustering::MaxNumModules)) + threadsPerBlock - 1) / threadsPerBlock;
 
       /*
-      DPCT1049:196: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
+      DPCT1049:186: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
       stream.submit([&](sycl::handler &cgh) {
         sycl::stream stream_ct1(64 * 1024, 80, cgh);
@@ -665,21 +669,21 @@ namespace pixelgpudetails {
         cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, blocks) * sycl::range(1, 1, threadsPerBlock),
                                         sycl::range(1, 1, threadsPerBlock)),
                          [=](sycl::nd_item<3> item_ct1) {
-                           calibDigis(digis_d_moduleInd_ct0,
-                                      digis_d_c_xx_ct1,
-                                      digis_d_c_yy_ct2,
-                                      digis_d_adc_ct3,
-                                      gains,
-                                      wordCounter,
-                                      clusters_d_moduleStart_ct6,
-                                      clusters_d_clusInModule_ct7,
-                                      clusters_d_clusModuleStart_ct8,
-                                      item_ct1,
-                                      stream_ct1);
+                           gpuCalibPixel::calibDigis(digis_d_moduleInd_ct0,
+                                                     digis_d_c_xx_ct1,
+                                                     digis_d_c_yy_ct2,
+                                                     digis_d_adc_ct3,
+                                                     gains,
+                                                     wordCounter,
+                                                     clusters_d_moduleStart_ct6,
+                                                     clusters_d_clusInModule_ct7,
+                                                     clusters_d_clusModuleStart_ct8,
+                                                     item_ct1,
+                                                     stream_ct1);
                          });
       });
 #ifdef GPU_DEBUG
-      cudaDeviceSynchronize();
+      stream.wait_and_throw();
 #endif
 
 #ifdef GPU_DEBUG
@@ -688,7 +692,7 @@ namespace pixelgpudetails {
 #endif
 
       /*
-      DPCT1049:198: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
+      DPCT1049:189: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
       stream.submit([&](sycl::handler &cgh) {
         auto digis_d_c_moduleInd_ct0 = digis_d.c_moduleInd();
@@ -713,15 +717,21 @@ namespace pixelgpudetails {
       std::cout << "CUDA findClus kernel launch with " << blocks << " blocks of " << threadsPerBlock << " threads\n";
 #endif
       /*
-      DPCT1049:201: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
+      DPCT1049:192: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
       stream.submit([&](sycl::handler &cgh) {
         sycl::stream stream_ct1(64 * 1024, 80, cgh);
+
+        auto gMaxHit_ptr_ct1 = gMaxHit.get_ptr();
 
         sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> msize_acc_ct1(cgh);
         sycl::accessor<Hist, 0, sycl::access::mode::read_write, sycl::access::target::local> hist_acc_ct1(cgh);
         sycl::accessor<typename Hist::Counter, 1, sycl::access::mode::read_write, sycl::access::target::local>
             ws_acc_ct1(sycl::range(32), cgh);
+        sycl::accessor<uint32_t, 0, sycl::access::mode::read_write, sycl::access::target::local> totGood_acc_ct1(cgh);
+        sycl::accessor<uint32_t, 0, sycl::access::mode::read_write, sycl::access::target::local> n40_acc_ct1(cgh);
+        sycl::accessor<uint32_t, 0, sycl::access::mode::read_write, sycl::access::target::local> n60_acc_ct1(cgh);
+        sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> n0_acc_ct1(cgh);
         sycl::accessor<unsigned int, 0, sycl::access::mode::read_write, sycl::access::target::local>
             foundClusters_acc_ct1(cgh);
 
@@ -746,19 +756,24 @@ namespace pixelgpudetails {
                                     wordCounter,
                                     item_ct1,
                                     stream_ct1,
+                                    gMaxHit_ptr_ct1,
                                     msize_acc_ct1.get_pointer(),
                                     hist_acc_ct1.get_pointer(),
                                     ws_acc_ct1.get_pointer(),
+                                    totGood_acc_ct1.get_pointer(),
+                                    n40_acc_ct1.get_pointer(),
+                                    n60_acc_ct1.get_pointer(),
+                                    n0_acc_ct1.get_pointer(),
                                     foundClusters_acc_ct1.get_pointer());
                          });
       });
 #ifdef GPU_DEBUG
-      cudaDeviceSynchronize();
+      stream.wait_and_throw();
 #endif
 
       // apply charge cut
       /*
-      DPCT1049:203: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
+      DPCT1049:195: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
       stream.submit([&](sycl::handler &cgh) {
         sycl::stream stream_ct1(64 * 1024, 80, cgh);
@@ -805,20 +820,25 @@ namespace pixelgpudetails {
 
       // MUST be ONE block
       /*
-      DPCT1049:205: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
+      DPCT1049:197: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
       stream.submit([&](sycl::handler &cgh) {
+        sycl::stream stream_ct1(64 * 1024, 80, cgh);
+
         sycl::accessor<uint32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc_ct1(
             sycl::range(32), cgh);
 
         auto clusters_d_c_clusInModule_ct0 = clusters_d.c_clusInModule();
         auto clusters_d_clusModuleStart_ct1 = clusters_d.clusModuleStart();
 
-        cgh.parallel_for(
-            sycl::nd_range(sycl::range(1, 1, 1024), sycl::range(1, 1, 1024)), [=](sycl::nd_item<3> item_ct1) {
-              fillHitsModuleStart(
-                  clusters_d_c_clusInModule_ct0, clusters_d_clusModuleStart_ct1, item_ct1, ws_acc_ct1.get_pointer());
-            });
+        cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 1024), sycl::range(1, 1, 1024)),
+                         [=](sycl::nd_item<3> item_ct1) {
+                           fillHitsModuleStart(clusters_d_c_clusInModule_ct0,
+                                               clusters_d_clusModuleStart_ct1,
+                                               item_ct1,
+                                               stream_ct1,
+                                               ws_acc_ct1.get_pointer());
+                         });
       });
 
       // last element holds the number of all clusters
@@ -826,7 +846,7 @@ namespace pixelgpudetails {
           &(nModules_Clusters_h[1]), clusters_d.clusModuleStart() + gpuClustering::MaxNumModules, sizeof(uint32_t));
 
 #ifdef GPU_DEBUG
-      cudaDeviceSynchronize();
+      stream.wait_and_throw();
 #endif
 
     }  // end clusterizer scope

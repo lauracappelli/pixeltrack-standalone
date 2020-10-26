@@ -51,12 +51,20 @@ namespace cms {
 
       LaunchParameters(sycl::range<3> gridDim,
                        sycl::range<3> blockDim,
-                       size_t sharedMem = 0,
-                       sycl::queue stream = nullptr)
+                       size_t sharedMem,
+                       sycl::queue stream)
           : gridDim(gridDim), blockDim(blockDim), sharedMem(sharedMem), stream(stream) {}
 
-      LaunchParameters(int gridDim, int blockDim, size_t sharedMem = 0, sycl::queue stream = nullptr)
-          : gridDim(gridDim), blockDim(blockDim), sharedMem(sharedMem), stream(stream) {}
+      LaunchParameters(sycl::range<3> gridDim,
+                       sycl::range<3> blockDim,
+                       sycl::queue stream)
+          : gridDim(gridDim), blockDim(blockDim), sharedMem(0), stream(stream) {}
+
+      LaunchParameters(int gridDim, int blockDim, size_t sharedMem, sycl::queue stream)
+          : gridDim({1, 1, gridDim}), blockDim({1, 1, blockDim}), sharedMem(sharedMem), stream(stream) {}
+
+      LaunchParameters(int gridDim, int blockDim, sycl::queue stream)
+          : gridDim({1, 1, gridDim}), blockDim({1, 1, blockDim}), sharedMem(0), stream(stream) {}
     };
 
     namespace detail {

@@ -10,7 +10,6 @@
 #include <dpct/dpct.hpp>
 
 #include "SYCLCore/HistoContainer.h"
-#include "SYCLCore/currentDevice.h"
 #include "SYCLCore/device_unique_ptr.h"
 
 constexpr uint32_t MaxElem = 64000;
@@ -106,8 +105,6 @@ void verifyBulk(Assoc const* __restrict__ assoc, AtomicPairCounter const* apc, s
 }
 
 int main() {
-  auto current_device = cms::sycltools::currentDevice();
-
   std::cout << "OneToManyAssoc " << Assoc::nbins() << ' ' << Assoc::capacity() << ' ' << Assoc::wsSize() << std::endl;
   std::cout << "OneToManyAssoc (small) " << SmallAssoc::nbins() << ' ' << SmallAssoc::capacity() << ' '
             << SmallAssoc::wsSize() << std::endl;

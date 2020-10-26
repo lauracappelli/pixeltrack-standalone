@@ -7,53 +7,55 @@
 #include <CL/sycl.hpp>
 
 template <typename T>
-SYCL_EXTERNAL inline __attribute__((always_inline)) void warpPrefixScan(
+SYCL_EXTERNAL ALWAYS_INLINE void warpPrefixScan(
     T const* __restrict__ ci, T* __restrict__ co, uint32_t i, uint32_t mask, sycl::nd_item<3> item_ct1) {
+#ifdef DPCT_NEED_WORK
   // ci and co may be the same
   auto x = ci[i];
   auto laneId = item_ct1.get_local_id(2) & 0x1f;
 #pragma unroll
-  for (unsigned int offset = 1; offset < 32; offset <<= 1) {
+  for (int offset = 1; offset < 32; offset <<= 1) {
     /*
-    DPCT1023:77: The DPC++ sub-group does not support mask options for shuffle_up.
+    DPCT1023:57: The DPC++ sub-group does not support mask options for shuffle_up.
     */
     auto y = item_ct1.get_sub_group().shuffle_up(x, offset);
     if (laneId >= offset)
       x += y;
   }
   co[i] = x;
+#endif  // DPCT_NEED_WORK
 }
 
 //same as above may remove
 template <typename T>
-SYCL_EXTERNAL inline __attribute__((always_inline)) void warpPrefixScan(T* c,
-                                                                        uint32_t i,
-                                                                        uint32_t mask,
-                                                                        sycl::nd_item<3> item_ct1) {
+SYCL_EXTERNAL ALWAYS_INLINE void warpPrefixScan(T* c, uint32_t i, uint32_t mask, sycl::nd_item<3> item_ct1) {
+#ifdef DPCT_NEED_WORK
   auto x = c[i];
   auto laneId = item_ct1.get_local_id(2) & 0x1f;
 #pragma unroll
-  for (unsigned int offset = 1; offset < 32; offset <<= 1) {
+  for (int offset = 1; offset < 32; offset <<= 1) {
     /*
-    DPCT1023:78: The DPC++ sub-group does not support mask options for shuffle_up.
+    DPCT1023:58: The DPC++ sub-group does not support mask options for shuffle_up.
     */
     auto y = item_ct1.get_sub_group().shuffle_up(x, offset);
     if (laneId >= offset)
       x += y;
   }
   c[i] = x;
+#endif  // DPCT_NEED_WORK
 }
 
 // limited to 32*32 elements....
 template <typename T>
-SYCL_EXTERNAL inline __attribute__((always_inline)) void blockPrefixScan(
+SYCL_EXTERNAL ALWAYS_INLINE void blockPrefixScan(
     T const* __restrict__ ci, T* __restrict__ co, uint32_t size, T* ws, sycl::nd_item<3> item_ct1) {
+#ifdef DPCT_NEED_WORK
   assert(ws);
   assert(size <= 1024);
-  assert(0 == blockDim.x % 32);
+  assert(0 == item_ct1.get_local_range().get(2) % 32);
   auto first = item_ct1.get_local_id(2);
   /*
-  DPCT1004:28: Could not generate replacement.
+  DPCT1004:19: Could not generate replacement.
   */
   auto mask = __ballot_sync(0xffffffff, first < size);
 
@@ -65,7 +67,7 @@ SYCL_EXTERNAL inline __attribute__((always_inline)) void blockPrefixScan(
     if (31 == laneId)
       ws[warpId] = co[i];
     /*
-    DPCT1004:29: Could not generate replacement.
+    DPCT1004:20: Could not generate replacement.
     */
     mask = __ballot_sync(mask, i + item_ct1.get_local_range(2) < size);
   }
@@ -80,21 +82,20 @@ SYCL_EXTERNAL inline __attribute__((always_inline)) void blockPrefixScan(
     co[i] += ws[warpId - 1];
   }
   item_ct1.barrier();
+#endif  // DPCT_NEED_WORK
 }
 
 // same as above, may remove
 // limited to 32*32 elements....
 template <typename T>
-SYCL_EXTERNAL inline __attribute__((always_inline)) void blockPrefixScan(T* c,
-                                                                         uint32_t size,
-                                                                         T* ws,
-                                                                         sycl::nd_item<3> item_ct1) {
+SYCL_EXTERNAL ALWAYS_INLINE void blockPrefixScan(T* c, uint32_t size, T* ws, sycl::nd_item<3> item_ct1) {
+#ifdef DPCT_NEED_WORK
   assert(ws);
   assert(size <= 1024);
-  assert(0 == blockDim.x % 32);
+  assert(0 == item_ct1.get_local_range().get(2) % 32);
   auto first = item_ct1.get_local_id(2);
   /*
-  DPCT1004:30: Could not generate replacement.
+  DPCT1004:21: Could not generate replacement.
   */
   auto mask = __ballot_sync(0xffffffff, first < size);
 
@@ -106,7 +107,7 @@ SYCL_EXTERNAL inline __attribute__((always_inline)) void blockPrefixScan(T* c,
     if (31 == laneId)
       ws[warpId] = c[i];
     /*
-    DPCT1004:31: Could not generate replacement.
+    DPCT1004:22: Could not generate replacement.
     */
     mask = __ballot_sync(mask, i + item_ct1.get_local_range(2) < size);
   }
@@ -121,6 +122,7 @@ SYCL_EXTERNAL inline __attribute__((always_inline)) void blockPrefixScan(T* c,
     c[i] += ws[warpId - 1];
   }
   item_ct1.barrier();
+#endif  // DPCT_NEED_WORK
 }
 
 // limited to 1024*1024 elements....
@@ -134,7 +136,7 @@ void multiBlockPrefixScan(T const* __restrict__ ci,
                           bool* isLastBlockDone,
                           T* psum) {
   // first each block does a scan of size 1024; (better be enough blocks....)
-  assert(1024 * gridDim.x >= size);
+  assert(1024 * item_ct1.get_group_range(2) >= size);
   int off = 1024 * item_ct1.get_group(2);
   if (size - off > 0)
     blockPrefixScan(ci + off, co + off, sycl::min(1024, size - off), item_ct1, ws);

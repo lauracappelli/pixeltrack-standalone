@@ -32,7 +32,7 @@ namespace gpuClustering {
     auto firstPixel = moduleStart[1 + item_ct1.get_group(2)];
     auto thisModuleId = id[firstPixel];
     assert(thisModuleId < MaxNumModules);
-    assert(thisModuleId == moduleId[blockIdx.x]);
+    assert(thisModuleId == moduleId[item_ct1.get_group(2)]);
 
     auto nclus = nClustersInModule[thisModuleId];
     if (nclus == 0)
@@ -63,8 +63,8 @@ namespace gpuClustering {
 
 #ifdef GPU_DEBUG
     if (thisModuleId % 100 == 1)
-      if (threadIdx.x == 0)
-        printf("start clusterizer for module %d in block %d\n", thisModuleId, blockIdx.x);
+      if (item_ct1.get_local_id(2) == 0)
+        stream_ct1 << "start clusterizer for module " << thisModuleId << " in block " << item_ct1.get_group(2) << sycl::endl;;
 #endif
 
     assert(nclus <= MaxNumClustersPerModules);
