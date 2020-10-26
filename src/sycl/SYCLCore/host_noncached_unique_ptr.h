@@ -44,9 +44,6 @@ namespace cms {
    */
     template <typename T>
     typename host::noncached::impl::make_host_unique_selector<T>::non_array make_host_noncached_unique(
-        /*
-        DPCT1048:60: The original value cudaHostAllocDefault is not meaningful in the migrated code and was removed or replaced with 0. You may need to check the migrated code.
-        */
         unsigned int flags = 0) {
       static_assert(std::is_trivially_constructible<T>::value,
                     "Allocating with non-trivial constructor on the pinned host memory is not supported");
@@ -56,9 +53,6 @@ namespace cms {
 
     template <typename T>
     typename host::noncached::impl::make_host_unique_selector<T>::unbounded_array make_host_noncached_unique(
-        /*
-        DPCT1048:61: The original value cudaHostAllocDefault is not meaningful in the migrated code and was removed or replaced with 0. You may need to check the migrated code.
-        */
         size_t n,
         unsigned int flags = 0) {
       using element_type = typename std::remove_extent<T>::type;

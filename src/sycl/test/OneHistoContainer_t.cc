@@ -97,8 +97,7 @@ void mykernel(T const *__restrict__ v,
 
 template <typename T, int NBINS = 128, int S = 8 * sizeof(T), int DELTA = 1000>
 void go() {
-  dpct::device_ext &device = dpct::get_current_device();
-  sycl::queue &queue = device.default_queue();
+  sycl::queue queue = dpct::get_default_queue();
 
   std::mt19937 eng;
 

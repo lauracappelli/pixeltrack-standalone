@@ -17,10 +17,10 @@
 #include "plugin-SiPixelClusterizer/gpuClustering.h"
 #include "plugin-SiPixelClusterizer/gpuClusterChargeCut.h"
 
+using namespace gpuClustering;
+
 int main(void) {
-  dpct::device_ext &device = dpct::get_current_device();
-  sycl::queue &queue = device.default_queue();
-  using namespace gpuClustering;
+  sycl::queue queue = dpct::get_default_queue();
 
   int numElements = 256 * 2000;
   // these in reality are already on GPU

@@ -35,47 +35,16 @@ public:
   };
 
   T* allocate(std::size_t n) const __attribute__((warn_unused_result)) __attribute__((malloc))
-  __attribute__((returns_nonnull)) try {
-    void* ptr = nullptr;
-    /*
-    DPCT1003:23: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    int status = (ptr = (void*)sycl::malloc_host(n * sizeof(T), dpct::get_default_queue()), 0);
-    /*
-    DPCT1000:22: Error handling if-stmt was detected but could not be rewritten.
-    */
-    if (status != 0) {
-      /*
-      DPCT1001:21: The statement could not be removed.
-      */
-      throw cuda_bad_alloc(status);
-    }
+  __attribute__((returns_nonnull)) {
+    void* ptr = (void*)sycl::malloc_host(n * sizeof(T), dpct::get_default_queue());
     if (ptr == nullptr) {
       throw std::bad_alloc();
     }
     return static_cast<T*>(ptr);
-  } catch (sycl::exception const& exc) {
-    std::cerr << exc.what() << "Exception caught at file:" << __FILE__ << ", line:" << __LINE__ << std::endl;
-    std::exit(1);
   }
 
-  void deallocate(T* p, std::size_t n) const try {
-    /*
-    DPCT1003:26: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-    */
-    int status = (sycl::free(p, dpct::get_default_queue()), 0);
-    /*
-    DPCT1000:25: Error handling if-stmt was detected but could not be rewritten.
-    */
-    if (status != 0) {
-      /*
-      DPCT1001:24: The statement could not be removed.
-      */
-      throw cuda_bad_alloc(status);
-    }
-  } catch (sycl::exception const& exc) {
-    std::cerr << exc.what() << "Exception caught at file:" << __FILE__ << ", line:" << __LINE__ << std::endl;
-    std::exit(1);
+  void deallocate(T* p, std::size_t n) const {
+    sycl::free(p, dpct::get_default_queue());
   }
 };
 
