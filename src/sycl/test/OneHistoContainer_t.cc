@@ -9,7 +9,6 @@
 
 #include "SYCLCore/device_unique_ptr.h"
 #include "SYCLCore/HistoContainer.h"
-#include "SYCLCore/launch.h"
 
 template <typename T, int NBINS, int S, int DELTA>
 void mykernel(T const *__restrict__ v,
@@ -23,7 +22,7 @@ void mykernel(T const *__restrict__ v,
 
   if (item_ct1.get_local_id(2) == 0)
     /*
-    DPCT1015:232: Output needs adjustment.
+    DPCT1015:14: Output needs adjustment.
     */
     stream_ct1 << "start kernel for %d data\n";
 
@@ -38,15 +37,15 @@ void mykernel(T const *__restrict__ v,
     hist->count(v[j]);
   item_ct1.barrier();
 
-  assert(0 == hist.size());
+  assert(0 == hist->size());
   item_ct1.barrier();
 
   hist->finalize(item_ct1, ws);
   item_ct1.barrier();
 
-  assert(N == hist.size());
+  assert(N == hist->size());
   for (auto j = item_ct1.get_local_id(2); j < Hist::nbins(); j += item_ct1.get_local_range().get(2))
-    assert(hist.off[j] <= hist.off[j + 1]);
+    assert(hist->off[j] <= hist->off[j + 1]);
   item_ct1.barrier();
 
   if (item_ct1.get_local_id(2) < 32)
@@ -56,8 +55,8 @@ void mykernel(T const *__restrict__ v,
   for (auto j = item_ct1.get_local_id(2); j < N; j += item_ct1.get_local_range().get(2))
     hist->fill(v[j], j);
   item_ct1.barrier();
-  assert(0 == hist.off[0]);
-  assert(N == hist.size());
+  assert(0 == hist->off[0]);
+  assert(N == hist->size());
 
   for (auto j = item_ct1.get_local_id(2); j < hist->size() - 1; j += item_ct1.get_local_range().get(2)) {
     auto p = hist->begin() + j;
@@ -75,7 +74,7 @@ void mykernel(T const *__restrict__ v,
     auto ftest = [&](int k) {
       assert(k >= 0 && k < N);
       ++tot;
-      SYCL_EXTERNAL
+    SYCL_EXTERNAL
     };
     forEachInWindow(*hist, v[j], v[j], ftest);
     int rtot = hist->size(b0);
@@ -99,6 +98,9 @@ void mykernel(T const *__restrict__ v,
 
 template <typename T, int NBINS = 128, int S = 8 * sizeof(T), int DELTA = 1000>
 void go() {
+  dpct::device_ext &device = dpct::get_current_device();
+  sycl::queue &queue = device.default_queue();
+
   std::mt19937 eng;
 
   int rmin = std::numeric_limits<T>::min();
@@ -113,7 +115,7 @@ void go() {
   constexpr int N = 12000;
   T v[N];
 
-  auto v_d = cms::sycltools::make_device_unique<T[]>(N, nullptr);
+  auto v_d = cms::sycltools::make_device_unique<T[]>(N, queue);
   assert(v_d.get());
 
   using Hist = HistoContainer<T, NBINS, N, S>;
@@ -130,9 +132,22 @@ void go() {
 
     assert(v_d.get());
     assert(v);
-    dpct::get_default_queue().memcpy(v_d.get(), v, N * sizeof(T)).wait();
+    queue.memcpy(v_d.get(), v, N * sizeof(T)).wait();
     assert(v_d.get());
-    cms::sycltools::launch(mykernel<T, NBINS, S, DELTA>, {1, 256}, v_d.get(), N);
+    queue.submit([&](sycl::handler &cgh) {
+      sycl::stream stream_ct1(64 * 1024, 80, cgh);
+
+      sycl::accessor<Hist, 0, sycl::access::mode::read_write, sycl::access::target::local> hist_acc_ct1(cgh);
+      sycl::accessor<typename Hist::Counter, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc_ct1(
+          sycl::range(32), cgh);
+
+      auto v_d_get_ct0 = v_d.get();
+
+      cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 256), sycl::range(1, 1, 256)), [=](sycl::nd_item<3> item_ct1) {
+        mykernel<T, NBINS, S, DELTA>(
+            v_d_get_ct0, N, item_ct1, stream_ct1, hist_acc_ct1.get_pointer(), ws_acc_ct1.get_pointer());
+      });
+    });
   }
 }
 

@@ -129,7 +129,7 @@ inline __attribute__((always_inline)) void radixSortImpl(T const *__restrict__ a
       auto x = c[item_ct1.get_local_id(2)];
       auto laneId = item_ct1.get_local_id(2) & 0x1f;
 #pragma unroll
-      for (int offset = 1; offset < 32; offset <<= 1) {
+      for (uint32_t offset = 1; offset < 32; offset <<= 1) {
         /*
         DPCT1023:185: The DPC++ sub-group does not support mask options for shuffle_up.
         */

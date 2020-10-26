@@ -13,13 +13,13 @@
 #include <dpct/dpct.hpp>
 
 #include "SYCLCore/device_unique_ptr.h"
-#include "SYCLCore/launch.h"
-
 // dirty, but works
 #include "plugin-SiPixelClusterizer/gpuClustering.h"
 #include "plugin-SiPixelClusterizer/gpuClusterChargeCut.h"
 
 int main(void) {
+  dpct::device_ext &device = dpct::get_current_device();
+  sycl::queue &queue = device.default_queue();
   using namespace gpuClustering;
 
   int numElements = 256 * 2000;
@@ -31,14 +31,14 @@ int main(void) {
 
   auto h_clus = std::make_unique<int[]>(numElements);
 
-  auto d_id = cms::sycltools::make_device_unique<uint16_t[]>(numElements, nullptr);
-  auto d_x = cms::sycltools::make_device_unique<uint16_t[]>(numElements, nullptr);
-  auto d_y = cms::sycltools::make_device_unique<uint16_t[]>(numElements, nullptr);
-  auto d_adc = cms::sycltools::make_device_unique<uint16_t[]>(numElements, nullptr);
-  auto d_clus = cms::sycltools::make_device_unique<int[]>(numElements, nullptr);
-  auto d_moduleStart = cms::sycltools::make_device_unique<uint32_t[]>(MaxNumModules + 1, nullptr);
-  auto d_clusInModule = cms::sycltools::make_device_unique<uint32_t[]>(MaxNumModules, nullptr);
-  auto d_moduleId = cms::sycltools::make_device_unique<uint32_t[]>(MaxNumModules, nullptr);
+  auto d_id = cms::sycltools::make_device_unique<uint16_t[]>(numElements, queue);
+  auto d_x = cms::sycltools::make_device_unique<uint16_t[]>(numElements, queue);
+  auto d_y = cms::sycltools::make_device_unique<uint16_t[]>(numElements, queue);
+  auto d_adc = cms::sycltools::make_device_unique<uint16_t[]>(numElements, queue);
+  auto d_clus = cms::sycltools::make_device_unique<int[]>(numElements, queue);
+  auto d_moduleStart = cms::sycltools::make_device_unique<uint32_t[]>(MaxNumModules + 1, queue);
+  auto d_clusInModule = cms::sycltools::make_device_unique<uint32_t[]>(MaxNumModules, queue);
+  auto d_moduleId = cms::sycltools::make_device_unique<uint32_t[]>(MaxNumModules, queue);
 
   // later random number
   int n = 0;
@@ -229,41 +229,95 @@ int main(void) {
     size_t size16 = n * sizeof(unsigned short);
     // size_t size8 = n * sizeof(uint8_t);
 
-    dpct::get_default_queue().memcpy(d_moduleStart.get(), &nModules, sizeof(uint32_t)).wait();
-    dpct::get_default_queue().memcpy(d_id.get(), h_id.get(), size16).wait();
-    dpct::get_default_queue().memcpy(d_x.get(), h_x.get(), size16).wait();
-    dpct::get_default_queue().memcpy(d_y.get(), h_y.get(), size16).wait();
-    dpct::get_default_queue().memcpy(d_adc.get(), h_adc.get(), size16).wait();
-    // Launch CUDA Kernels
+    queue.memcpy(d_moduleStart.get(), &nModules, sizeof(uint32_t)).wait();
+
+    queue.memcpy(d_id.get(), h_id.get(), size16).wait();
+    queue.memcpy(d_x.get(), h_x.get(), size16).wait();
+    queue.memcpy(d_y.get(), h_y.get(), size16).wait();
+    queue.memcpy(d_adc.get(), h_adc.get(), size16).wait();
+    // Launch SYCL Kernels
     int threadsPerBlock = (kkk == 5) ? 512 : ((kkk == 3) ? 128 : 256);
     int blocksPerGrid = (numElements + threadsPerBlock - 1) / threadsPerBlock;
-    std::cout << "CUDA countModules kernel launch with " << blocksPerGrid << " blocks of " << threadsPerBlock
+    std::cout << "SYCL countModules kernel launch with " << blocksPerGrid << " blocks of " << threadsPerBlock
               << " threads\n";
 
-    cms::sycltools::launch(
-        countModules, {blocksPerGrid, threadsPerBlock}, d_id.get(), d_moduleStart.get(), d_clus.get(), n);
+    /*
+    DPCT1049:25: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
+    */
+    queue.submit([&](sycl::handler &cgh) {
+      auto d_id_get_ct0 = d_id.get();
+      auto d_moduleStart_get_ct1 = d_moduleStart.get();
+      auto d_clus_get_ct2 = d_clus.get();
+
+      cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, blocksPerGrid) * sycl::range(1, 1, threadsPerBlock),
+                                      sycl::range(1, 1, threadsPerBlock)),
+                       [=](sycl::nd_item<3> item_ct1) {
+                         countModules(d_id_get_ct0, d_moduleStart_get_ct1, d_clus_get_ct2, n, item_ct1);
+                       });
+    });
 
     blocksPerGrid = MaxNumModules;  //nModules;
 
-    std::cout << "CUDA findModules kernel launch with " << blocksPerGrid << " blocks of " << threadsPerBlock
+    std::cout << "SYCL findModules kernel launch with " << blocksPerGrid << " blocks of " << threadsPerBlock
               << " threads\n";
-    dpct::get_default_queue().memset(d_clusInModule.get(), 0, MaxNumModules * sizeof(uint32_t)).wait();
+    queue.memset(d_clusInModule.get(), 0, MaxNumModules * sizeof(uint32_t)).wait();
 
-    cms::sycltools::launch(findClus,
-                           {blocksPerGrid, threadsPerBlock},
-                           d_id.get(),
-                           d_x.get(),
-                           d_y.get(),
-                           d_moduleStart.get(),
-                           d_clusInModule.get(),
-                           d_moduleId.get(),
-                           d_clus.get(),
-                           n);
-    dpct::get_current_device().queues_wait_and_throw();
-    dpct::get_default_queue().memcpy(&nModules, d_moduleStart.get(), sizeof(uint32_t)).wait();
+    /*
+    DPCT1049:26: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
+    */
+    queue.submit([&](sycl::handler &cgh) {
+      sycl::stream stream_ct1(64 * 1024, 80, cgh);
+
+      auto gMaxHit_ptr_ct1 = gMaxHit.get_ptr();
+
+      sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> msize_acc_ct1(cgh);
+      sycl::accessor<Hist, 0, sycl::access::mode::read_write, sycl::access::target::local> hist_acc_ct1(cgh);
+      sycl::accessor<typename Hist::Counter, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc_ct1(
+          sycl::range(32), cgh);
+      sycl::accessor<uint32_t, 0, sycl::access::mode::read_write, sycl::access::target::local> totGood_acc_ct1(cgh);
+      sycl::accessor<uint32_t, 0, sycl::access::mode::read_write, sycl::access::target::local> n40_acc_ct1(cgh);
+      sycl::accessor<uint32_t, 0, sycl::access::mode::read_write, sycl::access::target::local> n60_acc_ct1(cgh);
+      sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> n0_acc_ct1(cgh);
+      sycl::accessor<unsigned int, 0, sycl::access::mode::read_write, sycl::access::target::local> foundClusters_acc_ct1(
+          cgh);
+
+      auto d_id_get_ct0 = d_id.get();
+      auto d_x_get_ct1 = d_x.get();
+      auto d_y_get_ct2 = d_y.get();
+      auto d_moduleStart_get_ct3 = d_moduleStart.get();
+      auto d_clusInModule_get_ct4 = d_clusInModule.get();
+      auto d_moduleId_get_ct5 = d_moduleId.get();
+      auto d_clus_get_ct6 = d_clus.get();
+
+      cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, blocksPerGrid) * sycl::range(1, 1, threadsPerBlock),
+                                      sycl::range(1, 1, threadsPerBlock)),
+                       [=](sycl::nd_item<3> item_ct1) {
+                         findClus(d_id_get_ct0,
+                                  d_x_get_ct1,
+                                  d_y_get_ct2,
+                                  d_moduleStart_get_ct3,
+                                  d_clusInModule_get_ct4,
+                                  d_moduleId_get_ct5,
+                                  d_clus_get_ct6,
+                                  n,
+                                  item_ct1,
+                                  stream_ct1,
+                                  gMaxHit_ptr_ct1,
+                                  msize_acc_ct1.get_pointer(),
+                                  hist_acc_ct1.get_pointer(),
+                                  ws_acc_ct1.get_pointer(),
+                                  totGood_acc_ct1.get_pointer(),
+                                  n40_acc_ct1.get_pointer(),
+                                  n60_acc_ct1.get_pointer(),
+                                  n0_acc_ct1.get_pointer(),
+                                  foundClusters_acc_ct1.get_pointer());
+                       });
+    });
+    queue.wait_and_throw();
+    queue.memcpy(&nModules, d_moduleStart.get(), sizeof(uint32_t)).wait();
 
     uint32_t nclus[MaxNumModules], moduleId[nModules];
-    dpct::get_default_queue().memcpy(&nclus, d_clusInModule.get(), MaxNumModules * sizeof(uint32_t)).wait();
+    queue.memcpy(&nclus, d_clusInModule.get(), MaxNumModules * sizeof(uint32_t)).wait();
 
     std::cout << "before charge cut found " << std::accumulate(nclus, nclus + MaxNumModules, 0) << " clusters"
               << std::endl;
@@ -275,24 +329,55 @@ int main(void) {
     if (ncl != std::accumulate(nclus, nclus + MaxNumModules, 0))
       std::cout << "ERROR!!!!! wrong number of cluster found" << std::endl;
 
-    cms::sycltools::launch(clusterChargeCut,
-                           {blocksPerGrid, threadsPerBlock},
-                           d_id.get(),
-                           d_adc.get(),
-                           d_moduleStart.get(),
-                           d_clusInModule.get(),
-                           d_moduleId.get(),
-                           d_clus.get(),
-                           n);
+    /*
+    DPCT1049:27: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
+    */
+    queue.submit([&](sycl::handler &cgh) {
+      sycl::stream stream_ct1(64 * 1024, 80, cgh);
 
-    dpct::get_current_device().queues_wait_and_throw();
+      sycl::accessor<int32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> charge_acc_ct1(
+          sycl::range(1024 /*MaxNumClustersPerModules*/), cgh);
+      sycl::accessor<uint8_t, 1, sycl::access::mode::read_write, sycl::access::target::local> ok_acc_ct1(
+          sycl::range(1024 /*MaxNumClustersPerModules*/), cgh);
+      sycl::accessor<uint16_t, 1, sycl::access::mode::read_write, sycl::access::target::local> newclusId_acc_ct1(
+          sycl::range(1024 /*MaxNumClustersPerModules*/), cgh);
+      sycl::accessor<uint16_t, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc_ct1(
+          sycl::range(32), cgh);
+
+      auto d_id_get_ct0 = d_id.get();
+      auto d_adc_get_ct1 = d_adc.get();
+      auto d_moduleStart_get_ct2 = d_moduleStart.get();
+      auto d_clusInModule_get_ct3 = d_clusInModule.get();
+      auto d_moduleId_get_ct4 = d_moduleId.get();
+      auto d_clus_get_ct5 = d_clus.get();
+
+      cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, blocksPerGrid) * sycl::range(1, 1, threadsPerBlock),
+                                      sycl::range(1, 1, threadsPerBlock)),
+                       [=](sycl::nd_item<3> item_ct1) {
+                         clusterChargeCut(d_id_get_ct0,
+                                          d_adc_get_ct1,
+                                          d_moduleStart_get_ct2,
+                                          d_clusInModule_get_ct3,
+                                          d_moduleId_get_ct4,
+                                          d_clus_get_ct5,
+                                          n,
+                                          item_ct1,
+                                          stream_ct1,
+                                          charge_acc_ct1.get_pointer(),
+                                          ok_acc_ct1.get_pointer(),
+                                          newclusId_acc_ct1.get_pointer(),
+                                          ws_acc_ct1.get_pointer());
+                       });
+    });
+
+    queue.wait_and_throw();
 
     std::cout << "found " << nModules << " Modules active" << std::endl;
 
-    dpct::get_default_queue().memcpy(h_id.get(), d_id.get(), size16).wait();
-    dpct::get_default_queue().memcpy(h_clus.get(), d_clus.get(), size32).wait();
-    dpct::get_default_queue().memcpy(&nclus, d_clusInModule.get(), MaxNumModules * sizeof(uint32_t)).wait();
-    dpct::get_default_queue().memcpy(&moduleId, d_moduleId.get(), nModules * sizeof(uint32_t)).wait();
+    queue.memcpy(h_id.get(), d_id.get(), size16).wait();
+    queue.memcpy(h_clus.get(), d_clus.get(), size32).wait();
+    queue.memcpy(&nclus, d_clusInModule.get(), MaxNumModules * sizeof(uint32_t)).wait();
+    queue.memcpy(&moduleId, d_moduleId.get(), nModules * sizeof(uint32_t)).wait();
 
     std::set<unsigned int> clids;
     for (int i = 0; i < n; ++i) {

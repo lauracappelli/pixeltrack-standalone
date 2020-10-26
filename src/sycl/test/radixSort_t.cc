@@ -12,7 +12,6 @@
 #include <dpct/dpct.hpp>
 
 #include "SYCLCore/device_unique_ptr.h"
-#include "SYCLCore/launch.h"
 #include "SYCLCore/radixSort.h"
 
 template <typename T>
@@ -33,6 +32,9 @@ struct RS<float> {
 
 template <typename T, int NS = sizeof(T), typename U = T, typename LL = long long>
 void go(bool useShared) {
+  dpct::device_ext &device = dpct::get_current_device();
+  sycl::queue &queue = device.default_queue();
+
   std::mt19937 eng;
   //std::mt19937 eng2;
   auto rgen = RS<T>::ud();
@@ -90,13 +92,13 @@ void go(bool useShared) {
 
     std::random_shuffle(v, v + N);
 
-    auto v_d = cms::sycltools::make_device_unique<U[]>(N, nullptr);
-    auto ind_d = cms::sycltools::make_device_unique<uint16_t[]>(N, nullptr);
-    auto ws_d = cms::sycltools::make_device_unique<uint16_t[]>(N, nullptr);
-    auto off_d = cms::sycltools::make_device_unique<uint32_t[]>(blocks + 1, nullptr);
+    auto v_d = cms::sycltools::make_device_unique<U[]>(N, queue);
+    auto ind_d = cms::sycltools::make_device_unique<uint16_t[]>(N, queue);
+    auto ws_d = cms::sycltools::make_device_unique<uint16_t[]>(N, queue);
+    auto off_d = cms::sycltools::make_device_unique<uint32_t[]>(blocks + 1, queue);
 
-    dpct::get_default_queue().memcpy(v_d.get(), v, N * sizeof(T)).wait();
-    dpct::get_default_queue().memcpy(off_d.get(), offsets, 4 * (blocks + 1)).wait();
+    queue.memcpy(v_d.get(), v, N * sizeof(T)).wait();
+    queue.memcpy(off_d.get(), offsets, 4 * (blocks + 1)).wait();
 
     if (i < 2)
       std::cout << "lauch for " << offsets[blocks] << std::endl;
@@ -106,16 +108,81 @@ void go(bool useShared) {
     delta -= (std::chrono::high_resolution_clock::now() - start);
     constexpr int MaxSize = 256 * 32;
     if (useShared)
-      cms::sycltools::launch(
-          radixSortMultiWrapper<U, NS>, {blocks, ntXBl, MaxSize * 2}, v_d.get(), ind_d.get(), off_d.get(), nullptr);
+      /*
+          DPCT1049:29: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
+          */
+      queue.submit([&](sycl::handler &cgh) {
+        sycl::accessor<uint8_t, 1, sycl::access::mode::read_write, sycl::access::target::local> dpct_local_acc_ct1(
+            sycl::range(MaxSize * 2), cgh);
+        sycl::accessor<int32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> c_acc_ct1(
+            sycl::range(256 /*sb*/), cgh);
+        sycl::accessor<int32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> ct_acc_ct1(
+            sycl::range(256 /*sb*/), cgh);
+        sycl::accessor<int32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> cu_acc_ct1(
+            sycl::range(256 /*sb*/), cgh);
+        sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> ibs_acc_ct1(cgh);
+        sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> p_acc_ct1(cgh);
+
+        auto v_d_get_ct0 = v_d.get();
+        auto ind_d_get_ct1 = ind_d.get();
+        auto off_d_get_ct2 = off_d.get();
+
+        cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, blocks) * sycl::range(1, 1, ntXBl), sycl::range(1, 1, ntXBl)),
+                         [=](sycl::nd_item<3> item_ct1) {
+                           radixSortMultiWrapper<U, NS>(v_d_get_ct0,
+                                                        ind_d_get_ct1,
+                                                        off_d_get_ct2,
+                                                        nullptr,
+                                                        item_ct1,
+                                                        dpct_local_acc_ct1.get_pointer(),
+                                                        c_acc_ct1.get_pointer(),
+                                                        ct_acc_ct1.get_pointer(),
+                                                        cu_acc_ct1.get_pointer(),
+                                                        ibs_acc_ct1.get_pointer(),
+                                                        p_acc_ct1.get_pointer());
+                         });
+      });
     else
-      cms::sycltools::launch(
-          radixSortMultiWrapper2<U, NS>, {blocks, ntXBl}, v_d.get(), ind_d.get(), off_d.get(), ws_d.get());
+      /*
+          DPCT1049:30: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
+          */
+      queue.submit([&](sycl::handler &cgh) {
+        sycl::accessor<uint8_t, 1, sycl::access::mode::read_write, sycl::access::target::local> dpct_local_acc_ct1(
+            sycl::range(0), cgh);
+        sycl::accessor<int32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> c_acc_ct1(
+            sycl::range(256 /*sb*/), cgh);
+        sycl::accessor<int32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> ct_acc_ct1(
+            sycl::range(256 /*sb*/), cgh);
+        sycl::accessor<int32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> cu_acc_ct1(
+            sycl::range(256 /*sb*/), cgh);
+        sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> ibs_acc_ct1(cgh);
+        sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> p_acc_ct1(cgh);
+
+        auto v_d_get_ct0 = v_d.get();
+        auto ind_d_get_ct1 = ind_d.get();
+        auto off_d_get_ct2 = off_d.get();
+        auto ws_d_get_ct3 = ws_d.get();
+
+        cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, blocks) * sycl::range(1, 1, ntXBl), sycl::range(1, 1, ntXBl)),
+                         [=](sycl::nd_item<3> item_ct1) {
+                           radixSortMultiWrapper2<U, NS>(v_d_get_ct0,
+                                                         ind_d_get_ct1,
+                                                         off_d_get_ct2,
+                                                         ws_d_get_ct3,
+                                                         item_ct1,
+                                                         dpct_local_acc_ct1.get_pointer(),
+                                                         c_acc_ct1.get_pointer(),
+                                                         ct_acc_ct1.get_pointer(),
+                                                         cu_acc_ct1.get_pointer(),
+                                                         ibs_acc_ct1.get_pointer(),
+                                                         p_acc_ct1.get_pointer());
+                         });
+      });
 
     if (i == 0)
       std::cout << "done for " << offsets[blocks] << std::endl;
 
-    dpct::get_default_queue().memcpy(ind, ind_d.get(), 2 * N).wait();
+    queue.memcpy(ind, ind_d.get(), 2 * N).wait();
 
     delta += (std::chrono::high_resolution_clock::now() - start);
 
@@ -139,8 +206,8 @@ void go(bool useShared) {
         auto k2 = a[ind[j - 1]];
         auto sh = sizeof(uint64_t) - NS;
         sh *= 8;
-        auto shorten = [sh](T& t) {
-          auto k = (uint64_t*)(&t);
+        auto shorten = [sh](T &t) {
+          auto k = (uint64_t *)(&t);
           *k = (*k >> sh) << sh;
         };
         shorten(k1);
