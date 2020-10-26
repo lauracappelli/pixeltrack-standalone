@@ -52,16 +52,12 @@ namespace testTrackingRecHit2D {
 }
 
 int main() {
-  sycl::queue stream;
-  /*
-  DPCT1025:58: The SYCL queue is created ignoring the flag/priority options.
-  */
-  stream = dpct::get_current_device().create_queue(true);
+  sycl::queue* stream = dpct::get_current_device().create_queue(true);
 
   // inner scope to deallocate memory before destroying the stream
   {
     auto nHits = 200;
-    TrackingRecHit2DCUDA tkhit(nHits, nullptr, nullptr, stream);
+    TrackingRecHit2DCUDA tkhit(nHits, nullptr, nullptr, *stream);
 
     testTrackingRecHit2D::runKernels(tkhit.view());
   }

@@ -151,13 +151,15 @@ int main() {
   }
   std::cout << "filled with " << n << " elements " << double(ave) / n << ' ' << imax << ' ' << nz << std::endl;
 
-  auto v_d = cms::sycltools::make_device_unique<std::array<uint16_t, 4>[]>(N, nullptr);
-  assert(v_d.get());
-  auto a_d = cms::sycltools::make_device_unique<Assoc[]>(1, nullptr);
-  auto sa_d = cms::sycltools::make_device_unique<SmallAssoc[]>(1, nullptr);
-  auto ws_d = cms::sycltools::make_device_unique<uint8_t[]>(Assoc::wsSize(), nullptr);
+  sycl::queue queue = dpct::get_default_queue();
 
-  dpct::get_default_queue().memcpy(v_d.get(), tr.data(), N * sizeof(std::array<uint16_t, 4>)).wait();
+  auto v_d = cms::sycltools::make_device_unique<std::array<uint16_t, 4>[]>(N, queue);
+  assert(v_d.get());
+  auto a_d = cms::sycltools::make_device_unique<Assoc[]>(1, queue);
+  auto sa_d = cms::sycltools::make_device_unique<SmallAssoc[]>(1, queue);
+  auto ws_d = cms::sycltools::make_device_unique<uint8_t[]>(Assoc::wsSize(), queue);
+
+  queue.memcpy(v_d.get(), tr.data(), N * sizeof(std::array<uint16_t, 4>)).wait();
 
   cms::sycltools::launchZero(a_d.get(), 0);
 
@@ -167,7 +169,7 @@ int main() {
   /*
   DPCT1049:236: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
   */
-  dpct::get_default_queue().submit([&](sycl::handler& cgh) {
+  queue.submit([&](sycl::handler& cgh) {
     auto v_d_get_ct0 = v_d.get();
     auto a_d_get_ct1 = a_d.get();
 
@@ -177,7 +179,7 @@ int main() {
   });
 
   cms::sycltools::launchFinalize(a_d.get(), ws_d.get(), 0);
-  dpct::get_default_queue().submit([&](sycl::handler& cgh) {
+  queue.submit([&](sycl::handler& cgh) {
     auto a_d_get_ct0 = a_d.get();
 
     cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 1), sycl::range(1, 1, 1)),
@@ -186,7 +188,7 @@ int main() {
   /*
   DPCT1049:237: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
   */
-  dpct::get_default_queue().submit([&](sycl::handler& cgh) {
+  queue.submit([&](sycl::handler& cgh) {
     auto v_d_get_ct0 = v_d.get();
     auto a_d_get_ct1 = a_d.get();
 
@@ -197,7 +199,7 @@ int main() {
 
   Assoc la;
 
-  dpct::get_default_queue().memcpy(&la, a_d.get(), sizeof(Assoc)).wait();
+  queue.memcpy(&la, a_d.get(), sizeof(Assoc)).wait();
 
   std::cout << la.size() << std::endl;
   imax = 0;
@@ -219,13 +221,13 @@ int main() {
   AtomicPairCounter* dc_d;
   AtomicPairCounter dc(0);
 
-  dc_d = sycl::malloc_device<AtomicPairCounter>(1, dpct::get_default_queue());
-  dpct::get_default_queue().memset(dc_d, 0, sizeof(AtomicPairCounter)).wait();
+  dc_d = sycl::malloc_device<AtomicPairCounter>(1, queue);
+  queue.memset(dc_d, 0, sizeof(AtomicPairCounter)).wait();
   nBlocks = (N + nThreads - 1) / nThreads;
   /*
   DPCT1049:241: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
   */
-  dpct::get_default_queue().submit([&](sycl::handler& cgh) {
+  queue.submit([&](sycl::handler& cgh) {
     auto v_d_get_ct1 = v_d.get();
     auto a_d_get_ct2 = a_d.get();
 
@@ -236,14 +238,14 @@ int main() {
   /*
   DPCT1049:242: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
   */
-  dpct::get_default_queue().submit([&](sycl::handler& cgh) {
+  queue.submit([&](sycl::handler& cgh) {
     auto a_d_get_ct1 = a_d.get();
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
         [=](sycl::nd_item<3> item_ct1) { finalizeBulk(dc_d, a_d_get_ct1, item_ct1); });
   });
-  dpct::get_default_queue().submit([&](sycl::handler& cgh) {
+  queue.submit([&](sycl::handler& cgh) {
     sycl::stream stream_ct1(64 * 1024, 80, cgh);
 
     auto a_d_get_ct0 = a_d.get();
@@ -252,23 +254,14 @@ int main() {
                      [=](sycl::nd_item<3> item_ct1) { verifyBulk(a_d_get_ct0, dc_d, stream_ct1); });
   });
 
-  /*
-  DPCT1003:243: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-  */
-  dpct::get_default_queue().memcpy(&la, a_d.get(), sizeof(Assoc)).wait();
-  /*
-  DPCT1003:244: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-  */
-  dpct::get_default_queue().memcpy(&dc, dc_d, sizeof(AtomicPairCounter)).wait();
+  queue.memcpy(&la, a_d.get(), sizeof(Assoc)).wait();
+  queue.memcpy(&dc, dc_d, sizeof(AtomicPairCounter)).wait();
 
-  /*
-  DPCT1003:245: Migrated API does not return error code. (*, 0) is inserted. You may need to rewrite this code.
-  */
-  dpct::get_default_queue().memset(dc_d, 0, sizeof(AtomicPairCounter)).wait();
+  queue.memset(dc_d, 0, sizeof(AtomicPairCounter)).wait();
   /*
   DPCT1049:246: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
   */
-  dpct::get_default_queue().submit([&](sycl::handler& cgh) {
+  queue.submit([&](sycl::handler& cgh) {
     auto v_d_get_ct1 = v_d.get();
     auto sa_d_get_ct2 = sa_d.get();
 
@@ -279,14 +272,14 @@ int main() {
   /*
   DPCT1049:247: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
   */
-  dpct::get_default_queue().submit([&](sycl::handler& cgh) {
+  queue.submit([&](sycl::handler& cgh) {
     auto sa_d_get_ct1 = sa_d.get();
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
         [=](sycl::nd_item<3> item_ct1) { finalizeBulk(dc_d, sa_d_get_ct1, item_ct1); });
   });
-  dpct::get_default_queue().submit([&](sycl::handler& cgh) {
+  queue.submit([&](sycl::handler& cgh) {
     sycl::stream stream_ct1(64 * 1024, 80, cgh);
 
     auto sa_d_get_ct0 = sa_d.get();
@@ -312,8 +305,8 @@ int main() {
   std::cout << "found with ave occupancy " << double(ave) / N << ' ' << imax << std::endl;
 
   // here verify use of block local counters
-  auto m1_d = cms::sycltools::make_device_unique<Multiplicity[]>(1, nullptr);
-  auto m2_d = cms::sycltools::make_device_unique<Multiplicity[]>(1, nullptr);
+  auto m1_d = cms::sycltools::make_device_unique<Multiplicity[]>(1, queue);
+  auto m2_d = cms::sycltools::make_device_unique<Multiplicity[]>(1, queue);
   cms::sycltools::launchZero(m1_d.get(), 0);
   cms::sycltools::launchZero(m2_d.get(), 0);
 
@@ -321,7 +314,7 @@ int main() {
   /*
   DPCT1049:248: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
   */
-  dpct::get_default_queue().submit([&](sycl::handler& cgh) {
+  queue.submit([&](sycl::handler& cgh) {
     auto v_d_get_ct0 = v_d.get();
     auto m1_d_get_ct1 = m1_d.get();
 
@@ -332,7 +325,7 @@ int main() {
   /*
   DPCT1049:249: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
   */
-  dpct::get_default_queue().submit([&](sycl::handler& cgh) {
+  queue.submit([&](sycl::handler& cgh) {
     sycl::accessor<Multiplicity::CountersOnly, 0, sycl::access::mode::read_write, sycl::access::target::local>
         local_acc_ct1(cgh);
 
@@ -345,7 +338,7 @@ int main() {
           countMultiLocal(v_d_get_ct0, m2_d_get_ct1, N, item_ct1, local_acc_ct1.get_pointer());
         });
   });
-  dpct::get_default_queue().submit([&](sycl::handler& cgh) {
+  queue.submit([&](sycl::handler& cgh) {
     auto m1_d_get_ct0 = m1_d.get();
     auto m2_d_get_ct1 = m2_d.get();
 
@@ -356,7 +349,7 @@ int main() {
 
   cms::sycltools::launchFinalize(m1_d.get(), ws_d.get(), 0);
   cms::sycltools::launchFinalize(m2_d.get(), ws_d.get(), 0);
-  dpct::get_default_queue().submit([&](sycl::handler& cgh) {
+  queue.submit([&](sycl::handler& cgh) {
     auto m1_d_get_ct0 = m1_d.get();
     auto m2_d_get_ct1 = m2_d.get();
 
@@ -365,7 +358,7 @@ int main() {
         [=](sycl::nd_item<3> item_ct1) { verifyMulti(m1_d_get_ct0, m2_d_get_ct1, item_ct1); });
   });
 
-  dpct::get_current_device().queues_wait_and_throw();
+  queue.wait_and_throw();
 
   return 0;
 }

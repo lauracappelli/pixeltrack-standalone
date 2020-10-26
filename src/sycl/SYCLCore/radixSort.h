@@ -14,7 +14,7 @@ inline void reorderSigned(
     T const *a, uint16_t *ind, uint16_t *ind2, uint32_t size, sycl::nd_item<3> item_ct1, uint32_t *firstNeg) {
   //move negative first...
 
-  int32_t first = item_ct1.get_local_id(2);
+  uint32_t first = item_ct1.get_local_id(2);
 
   *firstNeg = a[ind[0]] < 0 ? 0 : size;
   item_ct1.barrier();
@@ -49,7 +49,7 @@ inline void reorderFloat(
     T const *a, uint16_t *ind, uint16_t *ind2, uint32_t size, sycl::nd_item<3> item_ct1, uint32_t *firstNeg) {
   //move negative first...
 
-  int32_t first = item_ct1.get_local_id(2);
+  uint32_t first = item_ct1.get_local_id(2);
 
   *firstNeg = a[ind[0]] < 0 ? 0 : size;
   item_ct1.barrier();
@@ -98,7 +98,7 @@ inline __attribute__((always_inline)) void radixSortImpl(T const *__restrict__ a
   constexpr int ps = int(sizeof(T)) - NS;
 
   assert(size > 0);
-  assert(blockDim.x >= sb);
+  assert(item_ct1.get_local_range().get(2) >= sb);
 
   // bool debug = false; // threadIdx.x==0 && blockIdx.x==5;
 
@@ -107,12 +107,12 @@ inline __attribute__((always_inline)) void radixSortImpl(T const *__restrict__ a
   auto j = ind;
   auto k = ind2;
 
-  int32_t first = item_ct1.get_local_id(2);
+  uint32_t first = item_ct1.get_local_id(2);
   for (auto i = first; i < size; i += item_ct1.get_local_range().get(2))
     j[i] = i;
   item_ct1.barrier();
 
-  while ((item_ct1.barrier(), sycl::intel::all_of(item_ct1.get_group(), p < w / d))) {
+  while ((item_ct1.barrier(), sycl::intel::all_of(item_ct1.get_group(), *p < w / d))) {
     if (item_ct1.get_local_id(2) < sb)
       c[item_ct1.get_local_id(2)] = 0;
     item_ct1.barrier();
@@ -131,7 +131,7 @@ inline __attribute__((always_inline)) void radixSortImpl(T const *__restrict__ a
 #pragma unroll
       for (int offset = 1; offset < 32; offset <<= 1) {
         /*
-        DPCT1023:207: The DPC++ sub-group does not support mask options for shuffle_up.
+        DPCT1023:185: The DPC++ sub-group does not support mask options for shuffle_up.
         */
         auto y = item_ct1.get_sub_group().shuffle_up(x, offset);
         if (laneId >= offset)
@@ -155,7 +155,7 @@ inline __attribute__((always_inline)) void radixSortImpl(T const *__restrict__ a
     // broadcast
     *ibs = size - 1;
     item_ct1.barrier();
-    while ((item_ct1.barrier(), sycl::intel::all_of(item_ct1.get_group(), ibs > 0))) {
+    while ((item_ct1.barrier(), sycl::intel::all_of(item_ct1.get_group(), *ibs > 0))) {
       int i = *ibs - item_ct1.get_local_id(2);
       if (item_ct1.get_local_id(2) < sb) {
         cu[item_ct1.get_local_id(2)] = -1;
@@ -292,7 +292,7 @@ inline __attribute__((always_inline)) void radixSortMulti(T const *v,
   auto ind = index + offsets[item_ct1.get_group(2)];
   auto ind2 = nullptr == workspace ? ws : workspace + offsets[item_ct1.get_group(2)];
   auto size = offsets[item_ct1.get_group(2) + 1] - offsets[item_ct1.get_group(2)];
-  assert(offsets[blockIdx.x + 1] >= offsets[blockIdx.x]);
+  assert(offsets[item_ct1.get_group(2) + 1] >= offsets[item_ct1.get_group(2)]);
   if (size > 0)
     radixSort<T, NS>(a, ind, ind2, size, item_ct1, c, ct, cu, ibs, p);
 }

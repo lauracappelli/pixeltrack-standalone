@@ -15,11 +15,13 @@ void go() {
   std::mt19937 eng;
   std::uniform_int_distribution<T> rgen(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
 
+  sycl::queue queue = dpct::get_default_queue();
+
   constexpr int N = 12000;
   T v[N];
-  auto v_d = cms::sycltools::make_device_unique<T[]>(N, nullptr);
+  auto v_d = cms::sycltools::make_device_unique<T[]>(N, queue);
 
-  dpct::get_default_queue().memcpy(v_d.get(), v, N * sizeof(T)).wait();
+  queue.memcpy(v_d.get(), v, N * sizeof(T)).wait();
 
   constexpr uint32_t nParts = 10;
   constexpr uint32_t partSize = N / nParts;
@@ -31,10 +33,9 @@ void go() {
             << (std::numeric_limits<T>::max() - std::numeric_limits<T>::min()) / Hist::nbins() << std::endl;
 
   Hist h;
-  auto h_d = cms::sycltools::make_device_unique<Hist[]>(1, nullptr);
-  auto ws_d = cms::sycltools::make_device_unique<uint8_t[]>(Hist::wsSize(), nullptr);
-
-  auto off_d = cms::sycltools::make_device_unique<uint32_t[]>(nParts + 1, nullptr);
+  auto h_d = cms::sycltools::make_device_unique<Hist[]>(1, queue);
+  auto ws_d = cms::sycltools::make_device_unique<uint8_t[]>(Hist::wsSize(), queue);
+  auto off_d = cms::sycltools::make_device_unique<uint32_t[]>(nParts + 1, queue);
 
   for (int it = 0; it < 5; ++it) {
     offsets[0] = 0;
@@ -57,7 +58,7 @@ void go() {
       offsets[10] = 3297 + offsets[9];
     }
 
-    dpct::get_default_queue().memcpy(off_d.get(), offsets, 4 * (nParts + 1)).wait();
+    queue.memcpy(off_d.get(), offsets, 4 * (nParts + 1)).wait();
 
     for (long long j = 0; j < N; j++)
       v[j] = rgen(eng);
@@ -67,9 +68,9 @@ void go() {
         v[j] = sizeof(T) == 1 ? 22 : 3456;
     }
 
-    dpct::get_default_queue().memcpy(v_d.get(), v, N * sizeof(T)).wait();
+    queue.memcpy(v_d.get(), v, N * sizeof(T)).wait();
     cms::sycltools::fillManyFromVector(h_d.get(), ws_d.get(), nParts, v_d.get(), off_d.get(), offsets[10], 256, 0);
-    dpct::get_default_queue().memcpy(&h, h_d.get(), sizeof(Hist)).wait();
+    queue.memcpy(&h, h_d.get(), sizeof(Hist)).wait();
     assert(0 == h.off[0]);
     assert(offsets[10] == h.size());
 

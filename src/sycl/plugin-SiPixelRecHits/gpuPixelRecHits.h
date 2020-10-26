@@ -15,6 +15,8 @@
 
 namespace gpuPixelRecHits {
 
+  using ClusParams = pixelCPEforGPU::ClusParams;
+
   void getHits(pixelCPEforGPU::ParamsOnGPU const* __restrict__ cpeParams,
                BeamSpotCUDA::Data const* __restrict__ bs,
                SiPixelDigisCUDA::DeviceConstView const* __restrict__ pdigis,
@@ -22,6 +24,7 @@ namespace gpuPixelRecHits {
                SiPixelClustersCUDA::DeviceConstView const* __restrict__ pclusters,
                TrackingRecHit2DSOAView* phits,
                sycl::nd_item<3> item_ct1,
+               sycl::stream stream_ct1,
                ClusParams* clusParams) {
     // FIXME
     // the compiler seems NOT to optimize loads from views (even in a simple test case)
@@ -53,7 +56,7 @@ namespace gpuPixelRecHits {
       if (0 == item_ct1.get_local_id(2)) {
         agc.endCapZ[0] = ag.endCapZ[0] - bs->z;
         agc.endCapZ[1] = ag.endCapZ[1] - bs->z;
-        //         printf("endcapZ %f %f\n",agc.endCapZ[0],agc.endCapZ[1]);
+        //printf("endcapZ %f %f\n",agc.endCapZ[0],agc.endCapZ[1]);
       }
     }
 
@@ -61,10 +64,7 @@ namespace gpuPixelRecHits {
     constexpr uint16_t InvId = 9999;  // must be > MaxNumModules
     constexpr int32_t MaxHitsInIter = pixelCPEforGPU::MaxHitsInIter;
 
-    using ClusParams = pixelCPEforGPU::ClusParams;
-
     // as usual one block per module
-
     auto me = clusters.moduleId(item_ct1.get_group(2));
     int nclus = clusters.clusInModule(me);
 
@@ -72,8 +72,8 @@ namespace gpuPixelRecHits {
       return;
 
 #ifdef GPU_DEBUG
-    if (threadIdx.x == 0) {
-      auto k = first;
+    if (item_ct1.get_local_id(2) == 0) {
+      auto k = clusters.moduleStart(1 + item_ct1.get_group(2));
       while (digis.moduleInd(k) == InvId)
         ++k;
       assert(digis.moduleInd(k) == me);
@@ -82,8 +82,8 @@ namespace gpuPixelRecHits {
 
 #ifdef GPU_DEBUG
     if (me % 100 == 1)
-      if (threadIdx.x == 0)
-        printf("hitbuilder: %d clusters in module %d. will write at %d\n", nclus, me, clusters.clusModuleStart(me));
+      if (item_ct1.get_local_id(2) == 0)
+        stream_ct1 << "hitbuilder: " << nclus << " clusters in module " << me << ". will write at " << clusters.clusModuleStart(me) << sycl::endl;
 #endif
 
     for (int startClus = 0, endClus = nclus; startClus < endClus; startClus += MaxHitsInIter) {
@@ -130,10 +130,10 @@ namespace gpuPixelRecHits {
         cl -= startClus;
         assert(cl >= 0);
         assert(cl < MaxHitsInIter);
-        sycl::atomic<uint32_t>(sycl::global_ptr<uint32_t>(&clusParams.minRow[cl])).fetch_min(x);
-        sycl::atomic<uint32_t>(sycl::global_ptr<uint32_t>(&clusParams.maxRow[cl])).fetch_max(x);
-        sycl::atomic<uint32_t>(sycl::global_ptr<uint32_t>(&clusParams.minCol[cl])).fetch_min(y);
-        sycl::atomic<uint32_t>(sycl::global_ptr<uint32_t>(&clusParams.maxCol[cl])).fetch_max(y);
+        sycl::atomic<uint32_t>(sycl::global_ptr<uint32_t>(&clusParams->minRow[cl])).fetch_min(x);
+        sycl::atomic<uint32_t>(sycl::global_ptr<uint32_t>(&clusParams->maxRow[cl])).fetch_max(x);
+        sycl::atomic<uint32_t>(sycl::global_ptr<uint32_t>(&clusParams->minCol[cl])).fetch_min(y);
+        sycl::atomic<uint32_t>(sycl::global_ptr<uint32_t>(&clusParams->maxCol[cl])).fetch_max(y);
       }
 
       item_ct1.barrier();
@@ -153,15 +153,15 @@ namespace gpuPixelRecHits {
         auto x = digis.xx(i);
         auto y = digis.yy(i);
         auto ch = digis.adc(i);
-        sycl::atomic<int32_t>(sycl::global_ptr<int32_t>(&clusParams.charge[cl])).fetch_add(ch);
+        sycl::atomic<int32_t>(sycl::global_ptr<int32_t>(&clusParams->charge[cl])).fetch_add(ch);
         if (clusParams->minRow[cl] == x)
-          sycl::atomic<int32_t>(sycl::global_ptr<int32_t>(&clusParams.Q_f_X[cl])).fetch_add(ch);
+          sycl::atomic<int32_t>(sycl::global_ptr<int32_t>(&clusParams->Q_f_X[cl])).fetch_add(ch);
         if (clusParams->maxRow[cl] == x)
-          sycl::atomic<int32_t>(sycl::global_ptr<int32_t>(&clusParams.Q_l_X[cl])).fetch_add(ch);
+          sycl::atomic<int32_t>(sycl::global_ptr<int32_t>(&clusParams->Q_l_X[cl])).fetch_add(ch);
         if (clusParams->minCol[cl] == y)
-          sycl::atomic<int32_t>(sycl::global_ptr<int32_t>(&clusParams.Q_f_Y[cl])).fetch_add(ch);
+          sycl::atomic<int32_t>(sycl::global_ptr<int32_t>(&clusParams->Q_f_Y[cl])).fetch_add(ch);
         if (clusParams->maxCol[cl] == y)
-          sycl::atomic<int32_t>(sycl::global_ptr<int32_t>(&clusParams.Q_l_Y[cl])).fetch_add(ch);
+          sycl::atomic<int32_t>(sycl::global_ptr<int32_t>(&clusParams->Q_l_Y[cl])).fetch_add(ch);
       }
 
       item_ct1.barrier();
