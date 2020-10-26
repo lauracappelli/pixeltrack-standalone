@@ -69,7 +69,7 @@ void go() {
     }
 
     queue.memcpy(v_d.get(), v, N * sizeof(T)).wait();
-    cms::sycltools::fillManyFromVector(h_d.get(), ws_d.get(), nParts, v_d.get(), off_d.get(), offsets[10], 256, 0);
+    cms::sycltools::fillManyFromVector(h_d.get(), ws_d.get(), nParts, v_d.get(), off_d.get(), offsets[10], 256, queue);
     queue.memcpy(&h, h_d.get(), sizeof(Hist)).wait();
     assert(0 == h.off[0]);
     assert(offsets[10] == h.size());

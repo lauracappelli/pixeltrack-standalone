@@ -286,14 +286,14 @@ public:
   constexpr auto size() const { return uint32_t(off[totbins() - 1]); }
   constexpr auto size(uint32_t b) const { return off[b + 1] - off[b]; }
 
-  constexpr index_type const *begin() const { return bins; }
+  constexpr index_type const *begin() const { return bins.data(); }
   constexpr index_type const *end() const { return begin() + size(); }
 
-  constexpr index_type const *begin(uint32_t b) const { return bins + off[b]; }
-  constexpr index_type const *end(uint32_t b) const { return bins + off[b + 1]; }
+  constexpr index_type const *begin(uint32_t b) const { return bins.data() + off[b]; }
+  constexpr index_type const *end(uint32_t b) const { return bins.data() + off[b + 1]; }
 
   Counter off[totbins()];
-  index_type bins[capacity()];
+  std::array<index_type, capacity()> bins;
 };
 
 template <typename I,        // type stored in the container (usually an index in a vector of the input values)

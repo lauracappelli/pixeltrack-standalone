@@ -15,7 +15,7 @@ void update(AtomicPairCounter *dc, uint32_t *ind, uint32_t *cont, uint32_t n, sy
   auto c = dc->add(m);
   assert(c.m < n);
   ind[c.m] = c.n;
-  for (int j = c.n; j < c.n + m; ++j)
+  for (auto j = c.n; j < c.n + m; ++j)
     cont[j] = i;
 };
 

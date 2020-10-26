@@ -15,8 +15,8 @@ void mykernel(T const *__restrict__ v,
               uint32_t N,
               sycl::nd_item<3> item_ct1,
               sycl::stream stream_ct1,
-              Hist *hist,
-              typename Hist::Counter *ws) {
+              sycl::local_ptr<HistoContainer<T, NBINS, 12000, S, uint16_t>> hist,
+              sycl::local_ptr<typename HistoContainer<T, NBINS, 12000, S, uint16_t>::Counter> ws) {
   assert(v);
   assert(N == 12000);
 
@@ -72,9 +72,8 @@ void mykernel(T const *__restrict__ v,
     auto b0 = Hist::bin(v[j]);
     int tot = 0;
     auto ftest = [&](int k) {
-      assert(k >= 0 && k < N);
+      assert(k >= 0 && k < (int) N);
       ++tot;
-    SYCL_EXTERNAL
     };
     forEachInWindow(*hist, v[j], v[j], ftest);
     int rtot = hist->size(b0);
@@ -118,7 +117,7 @@ void go() {
   auto v_d = cms::sycltools::make_device_unique<T[]>(N, queue);
   assert(v_d.get());
 
-  using Hist = HistoContainer<T, NBINS, N, S>;
+  using Hist = HistoContainer<T, NBINS, N, S, uint16_t>;
   std::cout << "HistoContainer " << Hist::nbits() << ' ' << Hist::nbins() << ' ' << Hist::capacity() << ' '
             << (rmax - rmin) / Hist::nbins() << std::endl;
   std::cout << "bins " << int(Hist::bin(0)) << ' ' << int(Hist::bin(rmin)) << ' ' << int(Hist::bin(rmax)) << std::endl;

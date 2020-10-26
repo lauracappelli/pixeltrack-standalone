@@ -15,12 +15,10 @@
 constexpr uint32_t MaxElem = 64000;
 constexpr uint32_t MaxTk = 8000;
 constexpr uint32_t MaxAssocs = 4 * MaxTk;
+
 using Assoc = OneToManyAssoc<uint16_t, MaxElem, MaxAssocs>;
-
 using SmallAssoc = OneToManyAssoc<uint16_t, 128, MaxAssocs>;
-
 using Multiplicity = OneToManyAssoc<uint16_t, 8, MaxTk>;
-
 using TK = std::array<uint16_t, 4>;
 
 void countMultiLocal(TK const* __restrict__ tk,
@@ -161,7 +159,7 @@ int main() {
 
   queue.memcpy(v_d.get(), tr.data(), N * sizeof(std::array<uint16_t, 4>)).wait();
 
-  cms::sycltools::launchZero(a_d.get(), 0);
+  cms::sycltools::launchZero(a_d.get(), queue);
 
   auto nThreads = 256;
   auto nBlocks = (4 * N + nThreads - 1) / nThreads;
@@ -178,7 +176,7 @@ int main() {
         [=](sycl::nd_item<3> item_ct1) { count(v_d_get_ct0, a_d_get_ct1, N, item_ct1); });
   });
 
-  cms::sycltools::launchFinalize(a_d.get(), ws_d.get(), 0);
+  cms::sycltools::launchFinalize(a_d.get(), ws_d.get(), queue);
   queue.submit([&](sycl::handler& cgh) {
     auto a_d_get_ct0 = a_d.get();
 
@@ -243,7 +241,7 @@ int main() {
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item_ct1) { finalizeBulk(dc_d, a_d_get_ct1, item_ct1); });
+        [=](sycl::nd_item<3> item_ct1) { cms::sycltools::finalizeBulk(dc_d, a_d_get_ct1, item_ct1); });
   });
   queue.submit([&](sycl::handler& cgh) {
     sycl::stream stream_ct1(64 * 1024, 80, cgh);
@@ -277,7 +275,7 @@ int main() {
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item_ct1) { finalizeBulk(dc_d, sa_d_get_ct1, item_ct1); });
+        [=](sycl::nd_item<3> item_ct1) { cms::sycltools::finalizeBulk(dc_d, sa_d_get_ct1, item_ct1); });
   });
   queue.submit([&](sycl::handler& cgh) {
     sycl::stream stream_ct1(64 * 1024, 80, cgh);
@@ -307,8 +305,8 @@ int main() {
   // here verify use of block local counters
   auto m1_d = cms::sycltools::make_device_unique<Multiplicity[]>(1, queue);
   auto m2_d = cms::sycltools::make_device_unique<Multiplicity[]>(1, queue);
-  cms::sycltools::launchZero(m1_d.get(), 0);
-  cms::sycltools::launchZero(m2_d.get(), 0);
+  cms::sycltools::launchZero(m1_d.get(), queue);
+  cms::sycltools::launchZero(m2_d.get(), queue);
 
   nBlocks = (4 * N + nThreads - 1) / nThreads;
   /*
@@ -347,8 +345,8 @@ int main() {
         [=](sycl::nd_item<3> item_ct1) { verifyMulti(m1_d_get_ct0, m2_d_get_ct1, item_ct1); });
   });
 
-  cms::sycltools::launchFinalize(m1_d.get(), ws_d.get(), 0);
-  cms::sycltools::launchFinalize(m2_d.get(), ws_d.get(), 0);
+  cms::sycltools::launchFinalize(m1_d.get(), ws_d.get(), queue);
+  cms::sycltools::launchFinalize(m2_d.get(), ws_d.get(), queue);
   queue.submit([&](sycl::handler& cgh) {
     auto m1_d_get_ct0 = m1_d.get();
     auto m2_d_get_ct1 = m2_d.get();
