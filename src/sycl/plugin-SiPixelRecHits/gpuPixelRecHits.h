@@ -31,8 +31,8 @@ namespace gpuPixelRecHits {
     // The whole gimnastic here of copying or not is a pure heuristic exercise that seems to produce the fastest code with the above signature
     // not using views (passing a gazzilion of array pointers) seems to produce the fastest code (but it is harder to mantain)
 
-    assert(phits);
-    assert(cpeParams);
+    //assert(phits);
+    //assert(cpeParams);
 
     auto& hits = *phits;
 
@@ -76,7 +76,7 @@ namespace gpuPixelRecHits {
       auto k = clusters.moduleStart(1 + item_ct1.get_group(2));
       while (digis.moduleInd(k) == InvId)
         ++k;
-      assert(digis.moduleInd(k) == me);
+      //assert(digis.moduleInd(k) == me);
     }
 #endif
 
@@ -91,11 +91,11 @@ namespace gpuPixelRecHits {
 
       int nClusInIter = sycl::min((const int)MaxHitsInIter, endClus - startClus);
       int lastClus = startClus + nClusInIter;
-      assert(nClusInIter <= nclus);
-      assert(nClusInIter > 0);
-      assert(lastClus <= nclus);
+      //assert(nClusInIter <= nclus);
+      //assert(nClusInIter > 0);
+      //assert(lastClus <= nclus);
 
-      assert(nclus > MaxHitsInIter || (0 == startClus && nClusInIter == nclus && lastClus == nclus));
+      //assert(nclus > MaxHitsInIter || (0 == startClus && nClusInIter == nclus && lastClus == nclus));
 
       // init
       for (int ic = item_ct1.get_local_id(2); ic < nClusInIter; ic += item_ct1.get_local_range().get(2)) {
@@ -128,8 +128,8 @@ namespace gpuPixelRecHits {
         auto x = digis.xx(i);
         auto y = digis.yy(i);
         cl -= startClus;
-        assert(cl >= 0);
-        assert(cl < MaxHitsInIter);
+        //assert(cl >= 0);
+        //assert(cl < MaxHitsInIter);
         sycl::atomic<uint32_t>(sycl::global_ptr<uint32_t>(&clusParams->minRow[cl])).fetch_min(x);
         sycl::atomic<uint32_t>(sycl::global_ptr<uint32_t>(&clusParams->maxRow[cl])).fetch_max(x);
         sycl::atomic<uint32_t>(sycl::global_ptr<uint32_t>(&clusParams->minCol[cl])).fetch_min(y);
@@ -148,8 +148,8 @@ namespace gpuPixelRecHits {
         if (cl < startClus || cl >= lastClus)
           continue;
         cl -= startClus;
-        assert(cl >= 0);
-        assert(cl < MaxHitsInIter);
+        //assert(cl >= 0);
+        //assert(cl < MaxHitsInIter);
         auto x = digis.xx(i);
         auto y = digis.yy(i);
         auto ch = digis.adc(i);
@@ -176,8 +176,8 @@ namespace gpuPixelRecHits {
         // this cannot happen anymore
         if (h >= TrackingRecHit2DSOAView::maxHits())
           break;  // overflow...
-        assert(h < hits.nHits());
-        assert(h < clusters.clusModuleStart(me + 1));
+        //assert(h < hits.nHits());
+        //assert(h < clusters.clusModuleStart(me + 1));
 
         pixelCPEforGPU::position(cpeParams->commonParams(), cpeParams->detParams(me), *clusParams, ic);
         pixelCPEforGPU::errorFromDB(cpeParams->commonParams(), cpeParams->detParams(me), *clusParams, ic);

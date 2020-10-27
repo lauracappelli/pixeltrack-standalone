@@ -17,8 +17,8 @@ void mykernel(T const *__restrict__ v,
               sycl::stream out,
               sycl::local_ptr<cms::sycltools::HistoContainer<T, NBINS, 12000, S, uint16_t>> hist,
               sycl::local_ptr<typename cms::sycltools::HistoContainer<T, NBINS, 12000, S, uint16_t>::Counter> ws) {
-  assert(v);
-  assert(N == 12000);
+  //assert(v);
+  //assert(N == 12000);
 
   if (item.get_local_id(2) == 0)
     out << "start kernel for %d data\n";
@@ -34,15 +34,15 @@ void mykernel(T const *__restrict__ v,
     hist->count(v[j]);
   item.barrier();
 
-  assert(0 == hist->size());
+  //assert(0 == hist->size());
   item.barrier();
 
   hist->finalize(item, ws, out);
   item.barrier();
 
-  assert(N == hist->size());
+  //assert(N == hist->size());
   for (auto j = item.get_local_id(2); j < Hist::nbins(); j += item.get_local_range().get(2))
-    assert(hist->off[j] <= hist->off[j + 1]);
+    //assert(hist->off[j] <= hist->off[j + 1]);
   item.barrier();
 
   if (item.get_local_id(2) < 32)
@@ -52,15 +52,15 @@ void mykernel(T const *__restrict__ v,
   for (auto j = item.get_local_id(2); j < N; j += item.get_local_range().get(2))
     hist->fill(v[j], j);
   item.barrier();
-  assert(0 == hist->off[0]);
-  assert(N == hist->size());
+  //assert(0 == hist->off[0]);
+  //assert(N == hist->size());
 
   for (auto j = item.get_local_id(2); j < hist->size() - 1; j += item.get_local_range().get(2)) {
     auto p = hist->begin() + j;
-    assert((*p) < N);
+    //assert((*p) < N);
     auto k1 = Hist::bin(v[*p]);
     auto k2 = Hist::bin(v[*(p + 1)]);
-    assert(k2 >= k1);
+    //assert(k2 >= k1);
   }
 
   for (auto i = item.get_local_id(2); i < hist->size(); i += item.get_local_range().get(2)) {
@@ -69,12 +69,12 @@ void mykernel(T const *__restrict__ v,
     auto b0 = Hist::bin(v[j]);
     int tot = 0;
     auto ftest = [&](int k) {
-      assert(k >= 0 && k < (int) N);
+      //assert(k >= 0 && k < (int) N);
       ++tot;
     };
     forEachInWindow(*hist, v[j], v[j], ftest);
     int rtot = hist->size(b0);
-    assert(tot == rtot);
+    //assert(tot == rtot);
     tot = 0;
     auto vm = int(v[j]) - DELTA;
     auto vp = int(v[j]) + DELTA;
@@ -83,12 +83,12 @@ void mykernel(T const *__restrict__ v,
     vm = sycl::min(vm, vmax);
     vp = sycl::min(vp, vmax);
     vp = sycl::max(vp, 0);
-    assert(vp >= vm);
+    //assert(vp >= vm);
     forEachInWindow(*hist, vm, vp, ftest);
     int bp = Hist::bin(vp);
     int bm = Hist::bin(vm);
     rtot = hist->end(bp) - hist->begin(bm);
-    assert(tot == rtot);
+    //assert(tot == rtot);
   }
 }
 
@@ -111,7 +111,7 @@ void go() {
   T v[N];
 
   auto v_d = cms::sycltools::make_device_unique<T[]>(N, queue);
-  assert(v_d.get());
+  //assert(v_d.get());
 
   using Hist = cms::sycltools::HistoContainer<T, NBINS, N, S, uint16_t>;
   std::cout << "HistoContainer " << Hist::nbits() << ' ' << Hist::nbins() << ' ' << Hist::capacity() << ' '
@@ -125,10 +125,10 @@ void go() {
       for (long long j = N / 2; j < N / 2 + N / 4; j++)
         v[j] = 4;
 
-    assert(v_d.get());
-    assert(v);
+    //assert(v_d.get());
+    //assert(v);
     queue.memcpy(v_d.get(), v, N * sizeof(T)).wait();
-    assert(v_d.get());
+    //assert(v_d.get());
     queue.submit([&](sycl::handler &cgh) {
       sycl::stream out(64 * 1024, 80, cgh);
 

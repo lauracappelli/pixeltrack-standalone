@@ -21,7 +21,7 @@ namespace {
                          sycl::stream stream_ct1) {
     auto i = item_ct1.get_group(2) * item_ct1.get_local_range().get(2) + item_ct1.get_local_id(2);
 
-    assert(0 == hitsModuleStart[0]);
+    //assert(0 == hitsModuleStart[0]);
 
     if (i < 11) {
       hitsLayerStart[i] = hitsModuleStart[cpeParams->layerGeometry().layerStart[i]];

@@ -23,7 +23,7 @@ namespace cms {
           // add a default constructed object to the map
           gpuDataPerDevice_[device];
         }
-        assert(devices.size() == gpuDataPerDevice_.size());
+        //assert(devices.size() == gpuDataPerDevice_.size());
       }
 
       ~ESProduct() = default;
@@ -55,7 +55,7 @@ namespace cms {
               // the device. Set the 'filled' for all subsequent calls and
               // return the value
               auto should_be_false = data.m_filled.exchange(true);
-              assert(not should_be_false);
+              //assert(not should_be_false);
               data.m_fillingStream.reset();
             } else if (data.m_fillingStream != stream) {
               // Filling is still going on, in a different SYCL queue.
@@ -72,7 +72,7 @@ namespace cms {
             // Now we can be sure that the data is not yet on the GPU, and
             // this thread is the first to try that.
             transferAsync(data.m_data, stream);
-            assert(not data.m_fillingStream);
+            //assert(not data.m_fillingStream);
             data.m_fillingStream = stream;
             // Now the filling has been enqueued to the stream, so we
             // can return the GPU data immediately, since all subsequent

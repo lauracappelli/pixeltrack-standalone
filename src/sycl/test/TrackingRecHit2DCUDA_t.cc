@@ -6,9 +6,9 @@
 namespace testTrackingRecHit2D {
 
   void fill(TrackingRecHit2DSOAView* phits, sycl::nd_item<3> item_ct1) {
-    assert(phits);
+    //assert(phits);
     auto& hits = *phits;
-    assert(hits.nHits() == 200);
+    //assert(hits.nHits() == 200);
 
     int i = item_ct1.get_local_id(2);
     if (i > 200)
@@ -16,9 +16,9 @@ namespace testTrackingRecHit2D {
   }
 
   void verify(TrackingRecHit2DSOAView const* phits, sycl::nd_item<3> item_ct1) {
-    assert(phits);
+    //assert(phits);
     auto const& hits = *phits;
-    assert(hits.nHits() == 200);
+    //assert(hits.nHits() == 200);
 
     int i = item_ct1.get_local_id(2);
     if (i > 200)
@@ -26,7 +26,7 @@ namespace testTrackingRecHit2D {
   }
 
   void runKernels(sycl::queue queue, TrackingRecHit2DSOAView* hits) {
-    assert(hits);
+    //assert(hits);
 
     queue.submit([&](sycl::handler& cgh) {
       cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 1024), sycl::range(1, 1, 1024)),

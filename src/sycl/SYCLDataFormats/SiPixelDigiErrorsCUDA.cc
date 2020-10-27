@@ -17,8 +17,8 @@ SiPixelDigiErrorsCUDA::SiPixelDigiErrorsCUDA(size_t maxFedWords, PixelFormatterE
 
   error_h = cms::sycltools::make_host_unique<GPU::SimpleVector<PixelErrorCompact>>(stream);
   GPU::make_SimpleVector(error_h.get(), maxFedWords, data_d.get());
-  assert(error_h->empty());
-  assert(error_h->capacity() == static_cast<int>(maxFedWords));
+  //assert(error_h->empty());
+  //assert(error_h->capacity() == static_cast<int>(maxFedWords));
 
   cms::sycltools::copyAsync(error_d, error_h, stream);
 }

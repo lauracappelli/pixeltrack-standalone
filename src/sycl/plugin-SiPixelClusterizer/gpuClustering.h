@@ -74,7 +74,7 @@ namespace gpuClustering {
 
     auto firstPixel = moduleStart[1 + item.get_group(2)];
     auto thisModuleId = id[firstPixel];
-    assert(thisModuleId < MaxNumModules);
+    //assert(thisModuleId < MaxNumModules);
 
 #ifdef GPU_DEBUG
     if (thisModuleId % 100 == 1)
@@ -104,7 +104,7 @@ namespace gpuClustering {
     }
     item.barrier();
 
-    assert((*msize == numElements) or ((*msize < numElements) and (id[(*msize)] != thisModuleId)));
+    //assert((*msize == numElements) or ((*msize < numElements) and (id[(*msize)] != thisModuleId)));
 
     // limit to maxPixInModule  (FIXME if recurrent (and not limited to simulation with low threshold) one will need to implement something cleverer)
     if (0 == item.get_local_id(2)) {
@@ -115,7 +115,7 @@ namespace gpuClustering {
     }
 
     item.barrier();
-    assert(*msize - firstPixel <= maxPixInModule);
+    //assert(*msize - firstPixel <= maxPixInModule);
 
 #ifdef GPU_DEBUG
     *totGood = 0;
@@ -138,7 +138,7 @@ namespace gpuClustering {
     hist->finalize(item, ws, out);
     item.barrier();
 #ifdef GPU_DEBUG
-    assert(hist->size() == *totGood);
+    //assert(hist->size() == *totGood);
     if (thisModuleId % 100 == 1)
       if (item.get_local_id(2) == 0)
         out << "histo size %d\n";
@@ -157,7 +157,7 @@ namespace gpuClustering {
 #endif
     // allocate space for duplicate pixels: a pixel can appear more than once with different charge in the same event
     constexpr int maxNeighbours = 10;
-    assert((hist->size() / item.get_local_range().get(2)) <= maxiter);
+    //assert((hist->size() / item.get_local_range().get(2)) <= maxiter);
     // nearest neighbour
     uint16_t nn[maxiter][maxNeighbours];
     uint8_t nnn[maxiter];  // number of nn
@@ -189,24 +189,24 @@ namespace gpuClustering {
 
     // fill NN
     for (auto j = item.get_local_id(2), k = 0UL; j < hist->size(); j += item.get_local_range().get(2), ++k) {
-      assert(k < maxiter);
+      //assert(k < maxiter);
       auto p = hist->begin() + j;
       auto i = *p + firstPixel;
-      assert(id[i] != InvId);
-      assert(id[i] == thisModuleId);  // same module
+      //assert(id[i] != InvId);
+      //assert(id[i] == thisModuleId);  // same module
       int be = Hist::bin(y[i] + 1);
       auto e = hist->end(be);
       ++p;
-      assert(0 == nnn[k]);
+      //assert(0 == nnn[k]);
       for (; p < e; ++p) {
         auto m = (*p) + firstPixel;
-        assert(m != i);
-        assert(int(y[m]) - int(y[i]) >= 0);
-        assert(int(y[m]) - int(y[i]) <= 1);
+        //assert(m != i);
+        //assert(int(y[m]) - int(y[i]) >= 0);
+        //assert(int(y[m]) - int(y[i]) <= 1);
         if (sycl::abs(int(x[m]) - int(x[i])) > 1)
           continue;
         auto l = nnn[k]++;
-        assert(l < maxNeighbours);
+        //assert(l < maxNeighbours);
         nn[k][l] = *p;
       }
     }
@@ -235,7 +235,7 @@ namespace gpuClustering {
           for (int kk = 0; kk < nnn[k]; ++kk) {
             auto l = nn[k][kk];
             auto m = l + firstPixel;
-            assert(m != i);
+            //assert(m != i);
             auto old = sycl::atomic<int32_t>(sycl::global_ptr<int32_t>(&clusterId[m])).fetch_min(clusterId[i]);
             if (old != clusterId[i]) {
               // end the loop only if no changes were applied
@@ -254,7 +254,7 @@ namespace gpuClustering {
         *n0 = nloops;
       item.barrier();
       auto ok = *n0 == nloops;
-      assert((item.barrier(), sycl::intel::all_of(item.get_group(), ok)));
+      //assert((item.barrier(), sycl::intel::all_of(item.get_group(), ok)));
       if (thisModuleId % 100 == 1)
         if (item.get_local_id(2) == 0)
           out << "# loops %d\n";
