@@ -10,7 +10,7 @@ namespace cms {
   namespace sycltools {
 
     template <typename T>
-    SYCL_EXTERNAL inline __attribute__((always_inline)) void warpPrefixScan(
+    inline __attribute__((always_inline)) void warpPrefixScan(
         sycl::nd_item<3> item, T const* __restrict__ ci, T* __restrict__ co, uint32_t i, unsigned int subgroupSize) {
       // ci and co may be the same
       auto x = ci[i];
@@ -26,10 +26,10 @@ namespace cms {
 
     //same as above may remove
     template <typename T>
-    SYCL_EXTERNAL inline __attribute__((always_inline)) void warpPrefixScan(sycl::nd_item<3> item,
-                                                                            T* c,
-                                                                            uint32_t i,
-                                                                            unsigned int subgroupSize) {
+    inline __attribute__((always_inline)) void warpPrefixScan(sycl::nd_item<3> item,
+                                                              T* c,
+                                                              uint32_t i,
+                                                              unsigned int subgroupSize) {
       auto x = c[i];
       auto laneId = item.get_local_id(2) % subgroupSize;
 #pragma unroll
@@ -42,14 +42,14 @@ namespace cms {
     }
 
     // limited to 32*32 elements....
-    template <typename T>
-    SYCL_EXTERNAL inline __attribute__((always_inline)) void blockPrefixScan(sycl::nd_item<3> item,
-                                                                             T const* __restrict__ ci,
-                                                                             T* __restrict__ co,
-                                                                             uint32_t size,
-                                                                             T* ws,
-                                                                             sycl::stream out,
-                                                                             unsigned int subgroupSize) {
+    template <typename VT, typename T>
+    inline __attribute__((always_inline)) void blockPrefixScan(sycl::nd_item<3> item,
+                                                               VT const* __restrict__ ci,
+                                                               VT* __restrict__ co,
+                                                               uint32_t size,
+                                                               T* ws,
+                                                               sycl::stream out,
+                                                               unsigned int subgroupSize) {
       //assert(ws);
       if (!ws) {
         out << "failed (blockPrefixScan): != ws " << sycl::endl;
@@ -96,7 +96,7 @@ namespace cms {
     // same as above, may remove
     // limited to 32*32 elements....
     template <typename T>
-    SYCL_EXTERNAL inline __attribute__((always_inline)) void blockPrefixScan(
+    inline __attribute__((always_inline)) void blockPrefixScan(
         sycl::nd_item<3> item, T* c, uint32_t size, T* ws, sycl::stream out, unsigned int subgroupSize) {
       //assert(ws);
       if (!ws) {
@@ -142,16 +142,16 @@ namespace cms {
     }
 
     template <typename T>
-    SYCL_EXTERNAL void multiBlockPrefixScan(sycl::nd_item<3> item,
-                                            T* const ci,
-                                            T* co,
-                                            uint32_t size,
-                                            int32_t* pc,
-                                            T* ws,
-                                            bool* isLastBlockDone,
-                                            T* psum,
-                                            sycl::stream out,
-                                            unsigned int subgroupSize) {
+    void multiBlockPrefixScan(sycl::nd_item<3> item,
+                              T* const ci,
+                              T* co,
+                              uint32_t size,
+                              int32_t* pc,
+                              T* ws,
+                              bool* isLastBlockDone,
+                              T* psum,
+                              sycl::stream out,
+                              unsigned int subgroupSize) {
       //assert(1024 * gridDim.x >= size);
       if (item.get_local_range().get(2) * item.get_group_range().get(2) < size) {
         out << "failed (multiBlockPrefixScan): item.get_local_range().get(2) * item.get_group_range.get(2) < size "
@@ -177,7 +177,8 @@ namespace cms {
       // good each block has done its work and now we are left in last block
 
       // let's get the partial sums from each block
-      for (unsigned int i = item.get_local_id(2), ni = item.get_group_range(2); i < ni; i += item.get_local_range().get(2)) {
+      for (unsigned int i = item.get_local_id(2), ni = item.get_group_range(2); i < ni;
+           i += item.get_local_range().get(2)) {
         auto j = item.get_local_range().get(2) * i + item.get_local_range().get(2) - 1;
         psum[i] = (j < size) ? co[j] : T(0);
       }

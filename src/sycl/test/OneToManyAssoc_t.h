@@ -16,44 +16,44 @@ constexpr uint32_t MaxElem = 64000;
 constexpr uint32_t MaxTk = 8000;
 constexpr uint32_t MaxAssocs = 4 * MaxTk;
 
-using Assoc = OneToManyAssoc<uint16_t, MaxElem, MaxAssocs>;
-using SmallAssoc = OneToManyAssoc<uint16_t, 128, MaxAssocs>;
-using Multiplicity = OneToManyAssoc<uint16_t, 8, MaxTk>;
+using Assoc = cms::sycltools::OneToManyAssoc<uint16_t, MaxElem, MaxAssocs>;
+using SmallAssoc = cms::sycltools::OneToManyAssoc<uint16_t, 128, MaxAssocs>;
+using Multiplicity = cms::sycltools::OneToManyAssoc<uint16_t, 8, MaxTk>;
 using TK = std::array<uint16_t, 4>;
 
 void countMultiLocal(TK const* __restrict__ tk,
                      Multiplicity* __restrict__ assoc,
                      int32_t n,
-                     sycl::nd_item<3> item_ct1,
+                     sycl::nd_item<3> item,
                      Multiplicity::CountersOnly* local) {
-  int first = item_ct1.get_local_range().get(2) * item_ct1.get_group(2) + item_ct1.get_local_id(2);
-  for (int i = first; i < n; i += item_ct1.get_group_range(2) * item_ct1.get_local_range().get(2)) {
-    if (item_ct1.get_local_id(2) == 0)
+  int first = item.get_local_range().get(2) * item.get_group(2) + item.get_local_id(2);
+  for (int i = first; i < n; i += item.get_group_range(2) * item.get_local_range().get(2)) {
+    if (item.get_local_id(2) == 0)
       local->zero();
-    item_ct1.barrier();
+    item.barrier();
     local->countDirect(2 + i % 4);
-    item_ct1.barrier();
-    if (item_ct1.get_local_id(2) == 0)
+    item.barrier();
+    if (item.get_local_id(2) == 0)
       assoc->add(*local);
   }
 }
 
-void countMulti(TK const* __restrict__ tk, Multiplicity* __restrict__ assoc, int32_t n, sycl::nd_item<3> item_ct1) {
-  int first = item_ct1.get_local_range().get(2) * item_ct1.get_group(2) + item_ct1.get_local_id(2);
-  for (int i = first; i < n; i += item_ct1.get_group_range(2) * item_ct1.get_local_range().get(2))
+void countMulti(TK const* __restrict__ tk, Multiplicity* __restrict__ assoc, int32_t n, sycl::nd_item<3> item) {
+  int first = item.get_local_range().get(2) * item.get_group(2) + item.get_local_id(2);
+  for (int i = first; i < n; i += item.get_group_range(2) * item.get_local_range().get(2))
     assoc->countDirect(2 + i % 4);
 }
 
-void verifyMulti(Multiplicity* __restrict__ m1, Multiplicity* __restrict__ m2, sycl::nd_item<3> item_ct1) {
-  auto first = item_ct1.get_local_range().get(2) * item_ct1.get_group(2) + item_ct1.get_local_id(2);
+void verifyMulti(Multiplicity* __restrict__ m1, Multiplicity* __restrict__ m2, sycl::nd_item<3> item) {
+  auto first = item.get_local_range().get(2) * item.get_group(2) + item.get_local_id(2);
   for (auto i = first; i < Multiplicity::totbins();
-       i += item_ct1.get_group_range(2) * item_ct1.get_local_range().get(2))
+       i += item.get_group_range(2) * item.get_local_range().get(2))
     assert(m1->off[i] == m2->off[i]);
 }
 
-void count(TK const* __restrict__ tk, Assoc* __restrict__ assoc, int32_t n, sycl::nd_item<3> item_ct1) {
-  int first = item_ct1.get_local_range().get(2) * item_ct1.get_group(2) + item_ct1.get_local_id(2);
-  for (int i = first; i < 4 * n; i += item_ct1.get_group_range(2) * item_ct1.get_local_range().get(2)) {
+void count(TK const* __restrict__ tk, Assoc* __restrict__ assoc, int32_t n, sycl::nd_item<3> item) {
+  int first = item.get_local_range().get(2) * item.get_group(2) + item.get_local_id(2);
+  for (int i = first; i < 4 * n; i += item.get_group_range(2) * item.get_local_range().get(2)) {
     auto k = i / 4;
     auto j = i - 4 * k;
     assert(j < 4);
@@ -64,9 +64,9 @@ void count(TK const* __restrict__ tk, Assoc* __restrict__ assoc, int32_t n, sycl
   }
 }
 
-void fill(TK const* __restrict__ tk, Assoc* __restrict__ assoc, int32_t n, sycl::nd_item<3> item_ct1) {
-  int first = item_ct1.get_local_range().get(2) * item_ct1.get_group(2) + item_ct1.get_local_id(2);
-  for (int i = first; i < 4 * n; i += item_ct1.get_group_range(2) * item_ct1.get_local_range().get(2)) {
+void fill(TK const* __restrict__ tk, Assoc* __restrict__ assoc, int32_t n, sycl::nd_item<3> item) {
+  int first = item.get_local_range().get(2) * item.get_group(2) + item.get_local_id(2);
+  for (int i = first; i < 4 * n; i += item.get_group_range(2) * item.get_local_range().get(2)) {
     auto k = i / 4;
     auto j = i - 4 * k;
     assert(j < 4);
@@ -84,35 +84,29 @@ void fillBulk(AtomicPairCounter* apc,
               TK const* __restrict__ tk,
               Assoc* __restrict__ assoc,
               int32_t n,
-              sycl::nd_item<3> item_ct1) {
-  int first = item_ct1.get_local_range().get(2) * item_ct1.get_group(2) + item_ct1.get_local_id(2);
-  for (int k = first; k < n; k += item_ct1.get_group_range(2) * item_ct1.get_local_range().get(2)) {
+              sycl::nd_item<3> item) {
+  int first = item.get_local_range().get(2) * item.get_group(2) + item.get_local_id(2);
+  for (int k = first; k < n; k += item.get_group_range(2) * item.get_local_range().get(2)) {
     auto m = tk[k][3] < MaxElem ? 4 : 3;
     assoc->bulkFill(*apc, &tk[k][0], m);
   }
 }
 
 template <typename Assoc>
-void verifyBulk(Assoc const* __restrict__ assoc, AtomicPairCounter const* apc, sycl::stream stream_ct1) {
+void verifyBulk(Assoc const* __restrict__ assoc, AtomicPairCounter const* apc, sycl::stream stream) {
   if (apc->get().m >= Assoc::nbins())
-    /*
-    DPCT1015:234: Output needs adjustment.
-    */
-    stream_ct1 << "Overflow %d %d\n";
+    stream << "Overflow %d %d\n";
   assert(assoc->size() < Assoc::capacity());
 }
 
 int main() {
-  std::cout << "OneToManyAssoc " << Assoc::nbins() << ' ' << Assoc::capacity() << ' ' << Assoc::wsSize() << std::endl;
-  std::cout << "OneToManyAssoc (small) " << SmallAssoc::nbins() << ' ' << SmallAssoc::capacity() << ' '
-            << SmallAssoc::wsSize() << std::endl;
+  std::cout << "OneToManyAssoc " << sizeof(Assoc) << ' ' << Assoc::nbins() << ' ' << Assoc::capacity() << std::endl;
+  std::cout << "OneToManyAssoc (small) " << sizeof(SmallAssoc) << ' ' << SmallAssoc::nbins() << ' ' << SmallAssoc::capacity() << std::endl;
 
   std::mt19937 eng;
-
   std::geometric_distribution<int> rdm(0.8);
 
   constexpr uint32_t N = 4000;
-
   std::vector<std::array<uint16_t, 4>> tr(N);
 
   // fill with "index" to element
@@ -155,7 +149,6 @@ int main() {
   assert(v_d.get());
   auto a_d = cms::sycltools::make_device_unique<Assoc[]>(1, queue);
   auto sa_d = cms::sycltools::make_device_unique<SmallAssoc[]>(1, queue);
-  auto ws_d = cms::sycltools::make_device_unique<uint8_t[]>(Assoc::wsSize(), queue);
 
   queue.memcpy(v_d.get(), tr.data(), N * sizeof(std::array<uint16_t, 4>)).wait();
 
@@ -164,35 +157,29 @@ int main() {
   auto nThreads = 256;
   auto nBlocks = (4 * N + nThreads - 1) / nThreads;
 
-  /*
-  DPCT1049:236: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-  */
   queue.submit([&](sycl::handler& cgh) {
-    auto v_d_get_ct0 = v_d.get();
-    auto a_d_get_ct1 = a_d.get();
+    auto v_d_get = v_d.get();
+    auto a_d_get = a_d.get();
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item_ct1) { count(v_d_get_ct0, a_d_get_ct1, N, item_ct1); });
+        [=](sycl::nd_item<3> item) { count(v_d_get, a_d_get, N, item); });
   });
 
-  cms::sycltools::launchFinalize(a_d.get(), ws_d.get(), queue);
+  cms::sycltools::launchFinalize(a_d.get(), queue);
   queue.submit([&](sycl::handler& cgh) {
-    auto a_d_get_ct0 = a_d.get();
+    auto a_d_get = a_d.get();
 
     cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 1), sycl::range(1, 1, 1)),
-                     [=](sycl::nd_item<3> item_ct1) { verify(a_d_get_ct0); });
+                     [=](sycl::nd_item<3> item) { verify(a_d_get); });
   });
-  /*
-  DPCT1049:237: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-  */
   queue.submit([&](sycl::handler& cgh) {
-    auto v_d_get_ct0 = v_d.get();
-    auto a_d_get_ct1 = a_d.get();
+    auto v_d_get = v_d.get();
+    auto a_d_get = a_d.get();
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item_ct1) { fill(v_d_get_ct0, a_d_get_ct1, N, item_ct1); });
+        [=](sycl::nd_item<3> item) { fill(v_d_get, a_d_get, N, item); });
   });
 
   Assoc la;
@@ -222,68 +209,56 @@ int main() {
   dc_d = sycl::malloc_device<AtomicPairCounter>(1, queue);
   queue.memset(dc_d, 0, sizeof(AtomicPairCounter)).wait();
   nBlocks = (N + nThreads - 1) / nThreads;
-  /*
-  DPCT1049:241: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-  */
   queue.submit([&](sycl::handler& cgh) {
-    auto v_d_get_ct1 = v_d.get();
-    auto a_d_get_ct2 = a_d.get();
+    auto v_d_get = v_d.get();
+    auto a_d_get = a_d.get();
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item_ct1) { fillBulk(dc_d, v_d_get_ct1, a_d_get_ct2, N, item_ct1); });
+        [=](sycl::nd_item<3> item) { fillBulk(dc_d, v_d_get, a_d_get, N, item); });
   });
-  /*
-  DPCT1049:242: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-  */
   queue.submit([&](sycl::handler& cgh) {
-    auto a_d_get_ct1 = a_d.get();
+    auto a_d_get = a_d.get();
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item_ct1) { cms::sycltools::finalizeBulk(dc_d, a_d_get_ct1, item_ct1); });
+        [=](sycl::nd_item<3> item) { cms::sycltools::finalizeBulk(dc_d, a_d_get, item); });
   });
   queue.submit([&](sycl::handler& cgh) {
-    sycl::stream stream_ct1(64 * 1024, 80, cgh);
+    sycl::stream stream(64 * 1024, 80, cgh);
 
-    auto a_d_get_ct0 = a_d.get();
+    auto a_d_get = a_d.get();
 
     cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 1), sycl::range(1, 1, 1)),
-                     [=](sycl::nd_item<3> item_ct1) { verifyBulk(a_d_get_ct0, dc_d, stream_ct1); });
+                     [=](sycl::nd_item<3> item) { verifyBulk(a_d_get, dc_d, stream); });
   });
 
   queue.memcpy(&la, a_d.get(), sizeof(Assoc)).wait();
   queue.memcpy(&dc, dc_d, sizeof(AtomicPairCounter)).wait();
 
   queue.memset(dc_d, 0, sizeof(AtomicPairCounter)).wait();
-  /*
-  DPCT1049:246: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-  */
   queue.submit([&](sycl::handler& cgh) {
-    auto v_d_get_ct1 = v_d.get();
-    auto sa_d_get_ct2 = sa_d.get();
+    auto v_d_get = v_d.get();
+    auto sa_d_get = sa_d.get();
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item_ct1) { fillBulk(dc_d, v_d_get_ct1, sa_d_get_ct2, N, item_ct1); });
+        [=](sycl::nd_item<3> item) { fillBulk(dc_d, v_d_get, sa_d_get, N, item); });
   });
-  /*
-  DPCT1049:247: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-  */
   queue.submit([&](sycl::handler& cgh) {
-    auto sa_d_get_ct1 = sa_d.get();
+    auto sa_d_get = sa_d.get();
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item_ct1) { cms::sycltools::finalizeBulk(dc_d, sa_d_get_ct1, item_ct1); });
+        [=](sycl::nd_item<3> item) { cms::sycltools::finalizeBulk(dc_d, sa_d_get, item); });
   });
   queue.submit([&](sycl::handler& cgh) {
-    sycl::stream stream_ct1(64 * 1024, 80, cgh);
+    sycl::stream stream(64 * 1024, 80, cgh);
 
-    auto sa_d_get_ct0 = sa_d.get();
+    auto sa_d_get = sa_d.get();
 
     cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 1), sycl::range(1, 1, 1)),
-                     [=](sycl::nd_item<3> item_ct1) { verifyBulk(sa_d_get_ct0, dc_d, stream_ct1); });
+                     [=](sycl::nd_item<3> item) { verifyBulk(sa_d_get, dc_d, stream); });
   });
 
   std::cout << "final counter value " << dc.get().n << ' ' << dc.get().m << std::endl;
@@ -309,51 +284,45 @@ int main() {
   cms::sycltools::launchZero(m2_d.get(), queue);
 
   nBlocks = (4 * N + nThreads - 1) / nThreads;
-  /*
-  DPCT1049:248: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-  */
   queue.submit([&](sycl::handler& cgh) {
-    auto v_d_get_ct0 = v_d.get();
-    auto m1_d_get_ct1 = m1_d.get();
+    auto v_d_get = v_d.get();
+    auto m1_d_get = m1_d.get();
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item_ct1) { countMulti(v_d_get_ct0, m1_d_get_ct1, N, item_ct1); });
+        [=](sycl::nd_item<3> item) { countMulti(v_d_get, m1_d_get, N, item); });
   });
-  /*
-  DPCT1049:249: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-  */
   queue.submit([&](sycl::handler& cgh) {
     sycl::accessor<Multiplicity::CountersOnly, 0, sycl::access::mode::read_write, sycl::access::target::local>
-        local_acc_ct1(cgh);
+        local_acc(cgh);
 
-    auto v_d_get_ct0 = v_d.get();
-    auto m2_d_get_ct1 = m2_d.get();
+    auto v_d_get = v_d.get();
+    auto m2_d_get = m2_d.get();
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item_ct1) {
-          countMultiLocal(v_d_get_ct0, m2_d_get_ct1, N, item_ct1, local_acc_ct1.get_pointer());
+        [=](sycl::nd_item<3> item) {
+          countMultiLocal(v_d_get, m2_d_get, N, item, local_acc.get_pointer());
         });
   });
   queue.submit([&](sycl::handler& cgh) {
-    auto m1_d_get_ct0 = m1_d.get();
-    auto m2_d_get_ct1 = m2_d.get();
+    auto m1_d_get = m1_d.get();
+    auto m2_d_get = m2_d.get();
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, Multiplicity::totbins()), sycl::range(1, 1, Multiplicity::totbins())),
-        [=](sycl::nd_item<3> item_ct1) { verifyMulti(m1_d_get_ct0, m2_d_get_ct1, item_ct1); });
+        [=](sycl::nd_item<3> item) { verifyMulti(m1_d_get, m2_d_get, item); });
   });
 
-  cms::sycltools::launchFinalize(m1_d.get(), ws_d.get(), queue);
-  cms::sycltools::launchFinalize(m2_d.get(), ws_d.get(), queue);
+  cms::sycltools::launchFinalize(m1_d.get(), queue);
+  cms::sycltools::launchFinalize(m2_d.get(), queue);
   queue.submit([&](sycl::handler& cgh) {
-    auto m1_d_get_ct0 = m1_d.get();
-    auto m2_d_get_ct1 = m2_d.get();
+    auto m1_d_get = m1_d.get();
+    auto m2_d_get = m2_d.get();
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, Multiplicity::totbins()), sycl::range(1, 1, Multiplicity::totbins())),
-        [=](sycl::nd_item<3> item_ct1) { verifyMulti(m1_d_get_ct0, m2_d_get_ct1, item_ct1); });
+        [=](sycl::nd_item<3> item) { verifyMulti(m1_d_get, m2_d_get, item); });
   });
 
   queue.wait_and_throw();

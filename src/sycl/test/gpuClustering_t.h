@@ -241,9 +241,6 @@ int main(void) {
     std::cout << "SYCL countModules kernel launch with " << blocksPerGrid << " blocks of " << threadsPerBlock
               << " threads\n";
 
-    /*
-    DPCT1049:25: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-    */
     queue.submit([&](sycl::handler &cgh) {
       auto d_id_get_ct0 = d_id.get();
       auto d_moduleStart_get_ct1 = d_moduleStart.get();
@@ -262,13 +259,10 @@ int main(void) {
               << " threads\n";
     queue.memset(d_clusInModule.get(), 0, MaxNumModules * sizeof(uint32_t)).wait();
 
-    /*
-    DPCT1049:26: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-    */
     queue.submit([&](sycl::handler &cgh) {
       sycl::stream stream_ct1(64 * 1024, 80, cgh);
 
-      auto gMaxHit_ptr_ct1 = gMaxHit.get_ptr();
+      //auto gMaxHit_ptr_ct1 = gMaxHit.get_ptr();
 
       sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> msize_acc_ct1(cgh);
       sycl::accessor<Hist, 0, sycl::access::mode::read_write, sycl::access::target::local> hist_acc_ct1(cgh);
@@ -302,7 +296,7 @@ int main(void) {
                                   n,
                                   item_ct1,
                                   stream_ct1,
-                                  gMaxHit_ptr_ct1,
+                                  //gMaxHit_ptr_ct1,
                                   msize_acc_ct1.get_pointer(),
                                   hist_acc_ct1.get_pointer(),
                                   ws_acc_ct1.get_pointer(),
@@ -329,9 +323,6 @@ int main(void) {
     if (ncl != std::accumulate(nclus, nclus + MaxNumModules, 0))
       std::cout << "ERROR!!!!! wrong number of cluster found" << std::endl;
 
-    /*
-    DPCT1049:27: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-    */
     queue.submit([&](sycl::handler &cgh) {
       sycl::stream stream_ct1(64 * 1024, 80, cgh);
 

@@ -13,52 +13,49 @@
 template <typename T, int NBINS, int S, int DELTA>
 void mykernel(T const *__restrict__ v,
               uint32_t N,
-              sycl::nd_item<3> item_ct1,
-              sycl::stream stream_ct1,
-              sycl::local_ptr<HistoContainer<T, NBINS, 12000, S, uint16_t>> hist,
-              sycl::local_ptr<typename HistoContainer<T, NBINS, 12000, S, uint16_t>::Counter> ws) {
+              sycl::nd_item<3> item,
+              sycl::stream out,
+              sycl::local_ptr<cms::sycltools::HistoContainer<T, NBINS, 12000, S, uint16_t>> hist,
+              sycl::local_ptr<typename cms::sycltools::HistoContainer<T, NBINS, 12000, S, uint16_t>::Counter> ws) {
   assert(v);
   assert(N == 12000);
 
-  if (item_ct1.get_local_id(2) == 0)
-    /*
-    DPCT1015:14: Output needs adjustment.
-    */
-    stream_ct1 << "start kernel for %d data\n";
+  if (item.get_local_id(2) == 0)
+    out << "start kernel for %d data\n";
 
-  using Hist = HistoContainer<T, NBINS, 12000, S, uint16_t>;
+  using Hist = cms::sycltools::HistoContainer<T, NBINS, 12000, S, uint16_t>;
 
-  for (auto j = item_ct1.get_local_id(2); j < Hist::totbins(); j += item_ct1.get_local_range().get(2)) {
+  for (auto j = item.get_local_id(2); j < Hist::totbins(); j += item.get_local_range().get(2)) {
     hist->off[j] = 0;
   }
-  item_ct1.barrier();
+  item.barrier();
 
-  for (auto j = item_ct1.get_local_id(2); j < N; j += item_ct1.get_local_range().get(2))
+  for (auto j = item.get_local_id(2); j < N; j += item.get_local_range().get(2))
     hist->count(v[j]);
-  item_ct1.barrier();
+  item.barrier();
 
   assert(0 == hist->size());
-  item_ct1.barrier();
+  item.barrier();
 
-  hist->finalize(item_ct1, ws);
-  item_ct1.barrier();
+  hist->finalize(item, ws, out);
+  item.barrier();
 
   assert(N == hist->size());
-  for (auto j = item_ct1.get_local_id(2); j < Hist::nbins(); j += item_ct1.get_local_range().get(2))
+  for (auto j = item.get_local_id(2); j < Hist::nbins(); j += item.get_local_range().get(2))
     assert(hist->off[j] <= hist->off[j + 1]);
-  item_ct1.barrier();
+  item.barrier();
 
-  if (item_ct1.get_local_id(2) < 32)
-    ws[item_ct1.get_local_id(2)] = 0;  // used by prefix scan...
-  item_ct1.barrier();
+  if (item.get_local_id(2) < 32)
+    ws[item.get_local_id(2)] = 0;  // used by prefix scan...
+  item.barrier();
 
-  for (auto j = item_ct1.get_local_id(2); j < N; j += item_ct1.get_local_range().get(2))
+  for (auto j = item.get_local_id(2); j < N; j += item.get_local_range().get(2))
     hist->fill(v[j], j);
-  item_ct1.barrier();
+  item.barrier();
   assert(0 == hist->off[0]);
   assert(N == hist->size());
 
-  for (auto j = item_ct1.get_local_id(2); j < hist->size() - 1; j += item_ct1.get_local_range().get(2)) {
+  for (auto j = item.get_local_id(2); j < hist->size() - 1; j += item.get_local_range().get(2)) {
     auto p = hist->begin() + j;
     assert((*p) < N);
     auto k1 = Hist::bin(v[*p]);
@@ -66,7 +63,7 @@ void mykernel(T const *__restrict__ v,
     assert(k2 >= k1);
   }
 
-  for (auto i = item_ct1.get_local_id(2); i < hist->size(); i += item_ct1.get_local_range().get(2)) {
+  for (auto i = item.get_local_id(2); i < hist->size(); i += item.get_local_range().get(2)) {
     auto p = hist->begin() + i;
     auto j = *p;
     auto b0 = Hist::bin(v[j]);
@@ -116,7 +113,7 @@ void go() {
   auto v_d = cms::sycltools::make_device_unique<T[]>(N, queue);
   assert(v_d.get());
 
-  using Hist = HistoContainer<T, NBINS, N, S, uint16_t>;
+  using Hist = cms::sycltools::HistoContainer<T, NBINS, N, S, uint16_t>;
   std::cout << "HistoContainer " << Hist::nbits() << ' ' << Hist::nbins() << ' ' << Hist::capacity() << ' '
             << (rmax - rmin) / Hist::nbins() << std::endl;
   std::cout << "bins " << int(Hist::bin(0)) << ' ' << int(Hist::bin(rmin)) << ' ' << int(Hist::bin(rmax)) << std::endl;
@@ -133,17 +130,17 @@ void go() {
     queue.memcpy(v_d.get(), v, N * sizeof(T)).wait();
     assert(v_d.get());
     queue.submit([&](sycl::handler &cgh) {
-      sycl::stream stream_ct1(64 * 1024, 80, cgh);
+      sycl::stream out(64 * 1024, 80, cgh);
 
-      sycl::accessor<Hist, 0, sycl::access::mode::read_write, sycl::access::target::local> hist_acc_ct1(cgh);
-      sycl::accessor<typename Hist::Counter, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc_ct1(
+      sycl::accessor<Hist, 0, sycl::access::mode::read_write, sycl::access::target::local> hist_acc(cgh);
+      sycl::accessor<typename Hist::Counter, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc(
           sycl::range(32), cgh);
 
       auto v_d_get_ct0 = v_d.get();
 
-      cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 256), sycl::range(1, 1, 256)), [=](sycl::nd_item<3> item_ct1) {
+      cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 256), sycl::range(1, 1, 256)), [=](sycl::nd_item<3> item) {
         mykernel<T, NBINS, S, DELTA>(
-            v_d_get_ct0, N, item_ct1, stream_ct1, hist_acc_ct1.get_pointer(), ws_acc_ct1.get_pointer());
+            v_d_get_ct0, N, item, out, hist_acc.get_pointer(), ws_acc.get_pointer());
       });
     });
   }

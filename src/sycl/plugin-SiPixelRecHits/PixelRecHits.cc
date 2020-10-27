@@ -26,8 +26,7 @@ namespace {
     if (i < 11) {
       hitsLayerStart[i] = hitsModuleStart[cpeParams->layerGeometry().layerStart[i]];
 #ifdef GPU_DEBUG
-      stream_ct1 << "LayerStart " << i << " " << cpeParams->layerGeometry().layerStart[i] << ": " << hitsLayerStart[i]
-                 << sycl::endl;
+      stream_ct1 << "LayerStart " << i << " " << cpeParams->layerGeometry().layerStart[i] << ": " << hitsLayerStart[i] << sycl::endl;
 #endif
     }
   }
@@ -50,9 +49,6 @@ namespace pixelgpudetails {
     std::cout << "launching getHits kernel for " << blocks << " blocks" << std::endl;
 #endif
     if (blocks)  // protect from empty events
-      /*
-      DPCT1049:236: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-      */
       stream.submit([&](sycl::handler& cgh) {
         sycl::stream stream_ct1(64 * 1024, 80, cgh);
         sycl::accessor<pixelCPEforGPU::ClusParams, 0, sycl::access::mode::read_write, sycl::access::target::local>
@@ -97,9 +93,8 @@ namespace pixelgpudetails {
     }
 
     if (nHits) {
-      auto hws = cms::sycltools::make_device_unique<uint8_t[]>(TrackingRecHit2DSOAView::Hist::wsSize(), stream);
       cms::sycltools::fillManyFromVector(
-          hits_d.phiBinner(), hws.get(), 10, hits_d.iphi(), hits_d.hitsLayerStart(), nHits, 256, stream);
+          hits_d.phiBinner(), 10, hits_d.iphi(), hits_d.hitsLayerStart(), nHits, 256, stream);
     }
 
 #ifdef GPU_DEBUG

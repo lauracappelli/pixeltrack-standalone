@@ -40,13 +40,7 @@ namespace pixelgpudetails {
   constexpr uint32_t MAX_FED_WORDS = pixelgpudetails::MAX_FED * pixelgpudetails::MAX_WORD;
 
   SiPixelRawToClusterGPUKernel::WordFedAppender::WordFedAppender() {
-    /*
-    DPCT1048:160: The original value cudaHostAllocWriteCombined is not meaningful in the migrated code and was removed or replaced with 0. You may need to check the migrated code.
-    */
     word_ = cms::sycltools::make_host_noncached_unique<unsigned int[]>(MAX_FED_WORDS, 0);
-    /*
-    DPCT1048:161: The original value cudaHostAllocWriteCombined is not meaningful in the migrated code and was removed or replaced with 0. You may need to check the migrated code.
-    */
     fedId_ = cms::sycltools::make_host_noncached_unique<unsigned char[]>(MAX_FED_WORDS, 0);
   }
 
@@ -157,45 +151,30 @@ namespace pixelgpudetails {
     switch (status) {
       case (1): {
         if (debug)
-          /*
-          DPCT1015:173: Output needs adjustment.
-          */
           stream << "Error in Fed: %i, invalid channel Id (errorType = 35\n)";
         errorType = 35;
         break;
       }
       case (2): {
         if (debug)
-          /*
-          DPCT1015:174: Output needs adjustment.
-          */
           stream << "Error in Fed: %i, invalid ROC Id (errorType = 36)\n";
         errorType = 36;
         break;
       }
       case (3): {
         if (debug)
-          /*
-          DPCT1015:175: Output needs adjustment.
-          */
           stream << "Error in Fed: %i, invalid dcol/pixel value (errorType = 37)\n";
         errorType = 37;
         break;
       }
       case (4): {
         if (debug)
-          /*
-          DPCT1015:176: Output needs adjustment.
-          */
           stream << "Error in Fed: %i, dcol/pixel read out of order (errorType = 38)\n";
         errorType = 38;
         break;
       }
       default:
         if (debug)
-          /*
-          DPCT1015:177: Output needs adjustment.
-          */
           stream << "Cabling check returned unexpected result, status = %i\n";
     };
 
@@ -465,9 +444,6 @@ namespace pixelgpudetails {
             uint8_t error = conversionError(fedId, 3, stream, debug);  //use the device function and fill the arrays
             err->push_back(PixelErrorCompact{rawId, ww, error, fedId});
             if (debug)
-              /*
-              DPCT1015:178: Output needs adjustment.
-              */
               stream << "BPIX1  Error status: %i\n";
             continue;
           }
@@ -484,9 +460,6 @@ namespace pixelgpudetails {
           uint8_t error = conversionError(fedId, 3, stream, debug);
           err->push_back(PixelErrorCompact{rawId, ww, error, fedId});
           if (debug)
-            /*
-            DPCT1015:179: Output needs adjustment.
-            */
             stream << "Error status: %i %d %d %d %d\n";
           continue;
         }
@@ -542,9 +515,6 @@ namespace pixelgpudetails {
       // [BPX1, BPX2, BPX3, BPX4,  FP1,  FP2,  FP3,  FN1,  FN2,  FN3, LAST_VALID]
       // [   0,   96,  320,  672, 1184, 1296, 1408, 1520, 1632, 1744,       1856]
       if (i == 96 || i == 1184 || i == 1744 || i == gpuClustering::MaxNumModules)
-        /*
-        DPCT1015:180: Output needs adjustment.
-        */
         stream << "moduleStart %d %d\n";
     }
 #endif
@@ -597,9 +567,6 @@ namespace pixelgpudetails {
       stream.memcpy(fedId_d.get(), wordFed.fedId(), wordCounter * sizeof(uint8_t) / 2);
 
       // Launch rawToDigi kernel
-      /*
-      DPCT1049:183: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-      */
       stream.submit([&](sycl::handler &cgh) {
         sycl::stream stream(64 * 1024, 80, cgh);
 
@@ -652,9 +619,6 @@ namespace pixelgpudetails {
       int blocks =
           (std::max(int(wordCounter), int(gpuClustering::MaxNumModules)) + threadsPerBlock - 1) / threadsPerBlock;
 
-      /*
-      DPCT1049:186: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-      */
       stream.submit([&](sycl::handler &cgh) {
         sycl::stream stream(64 * 1024, 80, cgh);
 
@@ -691,9 +655,6 @@ namespace pixelgpudetails {
                 << " threads\n";
 #endif
 
-      /*
-      DPCT1049:189: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-      */
       stream.submit([&](sycl::handler &cgh) {
         auto digis_d_c_moduleInd = digis_d.c_moduleInd();
         auto clusters_d_moduleStart = clusters_d.moduleStart();
@@ -716,13 +677,10 @@ namespace pixelgpudetails {
 #ifdef GPU_DEBUG
       std::cout << "CUDA findClus kernel launch with " << blocks << " blocks of " << threadsPerBlock << " threads\n";
 #endif
-      /*
-      DPCT1049:192: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-      */
       stream.submit([&](sycl::handler &cgh) {
         sycl::stream stream(64 * 1024, 80, cgh);
 
-        auto gMaxHit_ptr = gMaxHit.get_ptr();
+        //auto gMaxHit_ptr = gMaxHit.get_ptr();
 
         sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> msize_acc(cgh);
         sycl::accessor<Hist, 0, sycl::access::mode::read_write, sycl::access::target::local> hist_acc(cgh);
@@ -756,7 +714,7 @@ namespace pixelgpudetails {
                                     wordCounter,
                                     item,
                                     stream,
-                                    gMaxHit_ptr,
+                                    //gMaxHit_ptr,
                                     msize_acc.get_pointer(),
                                     hist_acc.get_pointer(),
                                     ws_acc.get_pointer(),
@@ -772,9 +730,6 @@ namespace pixelgpudetails {
 #endif
 
       // apply charge cut
-      /*
-      DPCT1049:195: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-      */
       stream.submit([&](sycl::handler &cgh) {
         sycl::stream stream(64 * 1024, 80, cgh);
 
@@ -819,9 +774,6 @@ namespace pixelgpudetails {
       // synchronization/ExternalWork
 
       // MUST be ONE block
-      /*
-      DPCT1049:197: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-      */
       stream.submit([&](sycl::handler &cgh) {
         sycl::stream stream(64 * 1024, 80, cgh);
 

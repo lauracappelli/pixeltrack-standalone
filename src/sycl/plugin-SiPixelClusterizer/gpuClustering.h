@@ -23,9 +23,9 @@ namespace gpuClustering {
                     uint32_t* __restrict__ moduleStart,
                     int32_t* __restrict__ clusterId,
                     int numElements,
-                    sycl::nd_item<3> item_ct1) {
-    int first = item_ct1.get_local_range().get(2) * item_ct1.get_group(2) + item_ct1.get_local_id(2);
-    for (int i = first; i < numElements; i += item_ct1.get_group_range(2) * item_ct1.get_local_range().get(2)) {
+                    sycl::nd_item<3> item) {
+    int first = item.get_local_range().get(2) * item.get_group(2) + item.get_local_id(2);
+    for (int i = first; i < numElements; i += item.get_group_range(2) * item.get_local_range().get(2)) {
       clusterId[i] = i;
       if (InvId == id[i])
         continue;
@@ -47,7 +47,7 @@ namespace gpuClustering {
   //init hist  (ymax=416 < 512 : 9bits)
   constexpr uint32_t maxPixInModule = 4000;
   constexpr auto nbins = phase1PixelTopology::numColsInModule + 2;  //2+2;
-  using Hist = HistoContainer<uint16_t, nbins, maxPixInModule, 9, uint16_t>;
+  using Hist = cms::sycltools::HistoContainer<uint16_t, nbins, maxPixInModule, 9, uint16_t>;
 
   //  __launch_bounds__(256,4)
   void findClus(uint16_t const* __restrict__ id,           // module id of each pixel
@@ -58,9 +58,9 @@ namespace gpuClustering {
                 uint32_t* __restrict__ moduleId,           // output: module id of each module
                 int32_t* __restrict__ clusterId,           // output: cluster id of each pixel
                 int numElements,
-                sycl::nd_item<3> item_ct1,
-                sycl::stream stream_ct1,
-                uint32_t* gMaxHit,
+                sycl::nd_item<3> item,
+                sycl::stream out,
+                //uint32_t* gMaxHit,
                 int* msize,
                 Hist* hist,
                 typename Hist::Counter* ws,
@@ -69,31 +69,28 @@ namespace gpuClustering {
                 uint32_t* n60,
                 int* n0,
                 unsigned int* foundClusters) {
-    if (item_ct1.get_group(2) >= moduleStart[0])
+    if (item.get_group(2) >= moduleStart[0])
       return;
 
-    auto firstPixel = moduleStart[1 + item_ct1.get_group(2)];
+    auto firstPixel = moduleStart[1 + item.get_group(2)];
     auto thisModuleId = id[firstPixel];
     assert(thisModuleId < MaxNumModules);
 
 #ifdef GPU_DEBUG
     if (thisModuleId % 100 == 1)
-      if (item_ct1.get_local_id(2) == 0)
-        /*
-        DPCT1015:165: Output needs adjustment.
-        */
-        stream_ct1 << "start clusterizer for module %d in block %d\n";
+      if (item.get_local_id(2) == 0)
+        out << "start clusterizer for module " << thisModuleId " in block %" << item.get_local_id(2) << sycl::endl;
 #endif
 
-    auto first = firstPixel + item_ct1.get_local_id(2);
+    auto first = firstPixel + item.get_local_id(2);
 
     // find the index of the first pixel not belonging to this module (or invalid)
 
     *msize = numElements;
-    item_ct1.barrier();
+    item.barrier();
 
     // skip threads not associated to an existing pixel
-    for (int i = first; i < numElements; i += item_ct1.get_local_range().get(2)) {
+    for (int i = first; i < numElements; i += item.get_local_range().get(2)) {
       if (id[i] == InvId)  // skip invalid pixels
         continue;
       if (id[i] != thisModuleId) {  // find the first pixel in a different module
@@ -102,34 +99,31 @@ namespace gpuClustering {
       }
     }
 
-    for (auto j = item_ct1.get_local_id(2); j < Hist::totbins(); j += item_ct1.get_local_range().get(2)) {
+    for (auto j = item.get_local_id(2); j < Hist::totbins(); j += item.get_local_range().get(2)) {
       hist->off[j] = 0;
     }
-    item_ct1.barrier();
+    item.barrier();
 
     assert((*msize == numElements) or ((*msize < numElements) and (id[(*msize)] != thisModuleId)));
 
     // limit to maxPixInModule  (FIXME if recurrent (and not limited to simulation with low threshold) one will need to implement something cleverer)
-    if (0 == item_ct1.get_local_id(2)) {
+    if (0 == item.get_local_id(2)) {
       if (*msize - firstPixel > maxPixInModule) {
-        /*
-        DPCT1015:166: Output needs adjustment.
-        */
-        stream_ct1 << "too many pixels in module %d: %d > %d\n";
+        out << "too many pixels in module %d: %d > %d\n";
         *msize = maxPixInModule + firstPixel;
       }
     }
 
-    item_ct1.barrier();
+    item.barrier();
     assert(*msize - firstPixel <= maxPixInModule);
 
 #ifdef GPU_DEBUG
     *totGood = 0;
-    item_ct1.barrier();
+    item.barrier();
 #endif
 
     // fill histo
-    for (int i = first; i < *msize; i += item_ct1.get_local_range().get(2)) {
+    for (int i = first; i < *msize; i += item.get_local_range().get(2)) {
       if (id[i] == InvId)  // skip invalid pixels
         continue;
       hist->count(y[i]);
@@ -137,22 +131,19 @@ namespace gpuClustering {
       sycl::atomic<uint32_t, sycl::access::address_space::local_space>(sycl::local_ptr<uint32_t>(totGood)).fetch_add(1);
 #endif
     }
-    item_ct1.barrier();
-    if (item_ct1.get_local_id(2) < 32)
-      ws[item_ct1.get_local_id(2)] = 0;  // used by prefix scan...
-    item_ct1.barrier();
-    hist->finalize(item_ct1, ws);
-    item_ct1.barrier();
+    item.barrier();
+    if (item.get_local_id(2) < 32)
+      ws[item.get_local_id(2)] = 0;  // used by prefix scan...
+    item.barrier();
+    hist->finalize(item, ws, out);
+    item.barrier();
 #ifdef GPU_DEBUG
     assert(hist->size() == *totGood);
     if (thisModuleId % 100 == 1)
-      if (item_ct1.get_local_id(2) == 0)
-        /*
-        DPCT1015:167: Output needs adjustment.
-        */
-        stream_ct1 << "histo size %d\n";
+      if (item.get_local_id(2) == 0)
+        out << "histo size %d\n";
 #endif
-    for (int i = first; i < *msize; i += item_ct1.get_local_range().get(2)) {
+    for (int i = first; i < *msize; i += item.get_local_range().get(2)) {
       if (id[i] == InvId)  // skip invalid pixels
         continue;
       hist->fill(y[i], i - firstPixel);
@@ -166,44 +157,38 @@ namespace gpuClustering {
 #endif
     // allocate space for duplicate pixels: a pixel can appear more than once with different charge in the same event
     constexpr int maxNeighbours = 10;
-    assert((hist->size() / item_ct1.get_local_range().get(2)) <= maxiter);
+    assert((hist->size() / item.get_local_range().get(2)) <= maxiter);
     // nearest neighbour
     uint16_t nn[maxiter][maxNeighbours];
     uint8_t nnn[maxiter];  // number of nn
     for (uint32_t k = 0; k < maxiter; ++k)
       nnn[k] = 0;
 
-    item_ct1.barrier();  // for hit filling!
+    item.barrier();  // for hit filling!
 
 #ifdef GPU_DEBUG
     // look for anomalous high occupancy
 
     *n40 = *n60 = 0;
-    item_ct1.barrier();
-    for (auto j = item_ct1.get_local_id(2); j < Hist::nbins(); j += item_ct1.get_local_range().get(2)) {
+    item.barrier();
+    for (auto j = item.get_local_id(2); j < Hist::nbins(); j += item.get_local_range().get(2)) {
       if (hist->size(j) > 60)
         sycl::atomic<uint32_t, sycl::access::address_space::local_space>(sycl::local_ptr<uint32_t>(n60)).fetch_add(1);
       if (hist->size(j) > 40)
         sycl::atomic<uint32_t, sycl::access::address_space::local_space>(sycl::local_ptr<uint32_t>(n40)).fetch_add(1);
     }
-    item_ct1.barrier();
-    if (0 == item_ct1.get_local_id(2)) {
+    item.barrier();
+    if (0 == item.get_local_id(2)) {
       if (*n60 > 0)
-        /*
-        DPCT1015:168: Output needs adjustment.
-        */
-        stream_ct1 << "columns with more than 60 px %d in %d\n";
+        out << "columns with more than 60 px %d in %d\n";
       else if (*n40 > 0)
-        /*
-        DPCT1015:169: Output needs adjustment.
-        */
-        stream_ct1 << "columns with more than 40 px %d in %d\n";
+        out << "columns with more than 40 px %d in %d\n";
     }
-    item_ct1.barrier();
+    item.barrier();
 #endif
 
     // fill NN
-    for (auto j = item_ct1.get_local_id(2), k = 0UL; j < hist->size(); j += item_ct1.get_local_range().get(2), ++k) {
+    for (auto j = item.get_local_id(2), k = 0UL; j < hist->size(); j += item.get_local_range().get(2), ++k) {
       assert(k < maxiter);
       auto p = hist->begin() + j;
       auto i = *p + firstPixel;
@@ -232,9 +217,9 @@ namespace gpuClustering {
     // pixel in the cluster ( clus[i] == i ).
     bool more = true;
     int nloops = 0;
-    while ((item_ct1.barrier(), sycl::intel::any_of(item_ct1.get_group(), more))) {
+    while ((item.barrier(), sycl::intel::any_of(item.get_group(), more))) {
       if (1 == nloops % 2) {
-        for (auto j = item_ct1.get_local_id(2), k = 0UL; j < hist->size(); j += item_ct1.get_local_range().get(2), ++k) {
+        for (auto j = item.get_local_id(2), k = 0UL; j < hist->size(); j += item.get_local_range().get(2), ++k) {
           auto p = hist->begin() + j;
           auto i = *p + firstPixel;
           auto m = clusterId[i];
@@ -244,7 +229,7 @@ namespace gpuClustering {
         }
       } else {
         more = false;
-        for (auto j = item_ct1.get_local_id(2), k = 0UL; j < hist->size(); j += item_ct1.get_local_range().get(2), ++k) {
+        for (auto j = item.get_local_id(2), k = 0UL; j < hist->size(); j += item.get_local_range().get(2), ++k) {
           auto p = hist->begin() + j;
           auto i = *p + firstPixel;
           for (int kk = 0; kk < nnn[k]; ++kk) {
@@ -265,26 +250,23 @@ namespace gpuClustering {
 
 #ifdef GPU_DEBUG
     {
-      if (item_ct1.get_local_id(2) == 0)
+      if (item.get_local_id(2) == 0)
         *n0 = nloops;
-      item_ct1.barrier();
+      item.barrier();
       auto ok = *n0 == nloops;
-      assert((item_ct1.barrier(), sycl::intel::all_of(item_ct1.get_group(), ok)));
+      assert((item.barrier(), sycl::intel::all_of(item.get_group(), ok)));
       if (thisModuleId % 100 == 1)
-        if (item_ct1.get_local_id(2) == 0)
-          /*
-          DPCT1015:170: Output needs adjustment.
-          */
-          stream_ct1 << "# loops %d\n";
+        if (item.get_local_id(2) == 0)
+          out << "# loops %d\n";
     }
 #endif
 
     *foundClusters = 0;
-    item_ct1.barrier();
+    item.barrier();
 
     // find the number of different clusters, identified by a pixels with clus[i] == i;
     // mark these pixels with a negative id.
-    for (int i = first; i < *msize; i += item_ct1.get_local_range().get(2)) {
+    for (int i = first; i < *msize; i += item.get_local_range().get(2)) {
       if (id[i] == InvId)  // skip invalid pixels
         continue;
       if (clusterId[i] == i) {
@@ -292,10 +274,10 @@ namespace gpuClustering {
         clusterId[i] = -(old + 1);
       }
     }
-    item_ct1.barrier();
+    item.barrier();
 
     // propagate the negative id to all the pixels in the cluster.
-    for (int i = first; i < *msize; i += item_ct1.get_local_range().get(2)) {
+    for (int i = first; i < *msize; i += item.get_local_range().get(2)) {
       if (id[i] == InvId)  // skip invalid pixels
         continue;
       if (clusterId[i] >= 0) {
@@ -303,37 +285,31 @@ namespace gpuClustering {
         clusterId[i] = clusterId[clusterId[i]];
       }
     }
-    item_ct1.barrier();
+    item.barrier();
 
     // adjust the cluster id to be a positive value starting from 0
-    for (int i = first; i < *msize; i += item_ct1.get_local_range().get(2)) {
+    for (int i = first; i < *msize; i += item.get_local_range().get(2)) {
       if (id[i] == InvId) {  // skip invalid pixels
         clusterId[i] = -9999;
         continue;
       }
       clusterId[i] = -clusterId[i] - 1;
     }
-    item_ct1.barrier();
+    item.barrier();
 
-    if (item_ct1.get_local_id(2) == 0) {
+    if (item.get_local_id(2) == 0) {
       nClustersInModule[thisModuleId] = *foundClusters;
-      moduleId[item_ct1.get_group(2)] = thisModuleId;
+      moduleId[item.get_group(2)] = thisModuleId;
 #ifdef GPU_DEBUG
       if (*foundClusters > *gMaxHit) {
         *gMaxHit = *foundClusters;
         if (*foundClusters > 8)
-          /*
-          DPCT1015:171: Output needs adjustment.
-          */
-          stream_ct1 << "max hit %d in %d\n";
+          out << "max hit %d in %d\n";
       }
 #endif
 #ifdef GPU_DEBUG
       if (thisModuleId % 100 == 1)
-        /*
-        DPCT1015:172: Output needs adjustment.
-        */
-        stream_ct1 << "%d clusters in module %d\n";
+        out << "%d clusters in module %d\n";
 #endif
     }
   }

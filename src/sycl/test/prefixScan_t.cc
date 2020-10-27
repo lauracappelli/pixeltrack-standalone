@@ -8,7 +8,7 @@
 using namespace cms::sycltools;
 
 template <typename T>
-SYCL_EXTERNAL void testPrefixScan(
+void testPrefixScan(
     sycl::nd_item<3> item, uint32_t size, sycl::stream out, T *ws, T *c, T *co, int subgroupSize) {
   auto first = item.get_local_id(2);
   for (auto i = first; i < size; i += item.get_local_range().get(2))
@@ -53,7 +53,7 @@ SYCL_EXTERNAL void testPrefixScan(
 }
 
 template <typename T>
-SYCL_EXTERNAL void testWarpPrefixScan(
+void testWarpPrefixScan(
     sycl::nd_item<3> item, uint32_t size, sycl::stream out, T *c, T *co, int subgroupSize) {
   //assert(size <= 32);
   if (size > 32) {
@@ -91,7 +91,7 @@ SYCL_EXTERNAL void testWarpPrefixScan(
       return;
     }
     //assert(c[i] == i + 1);
-    if (c[i] != i + 1) {
+    if (c[i] != (T) i + 1) {
       out << "failed (testWarpPrefixScan): c[i] != i + 1 " << sycl::endl;
       return;
     }
@@ -197,8 +197,8 @@ int main() try {
   queue.wait_and_throw();
 
   std::cout << "block level" << std::endl;
-  for (int bs = 32; bs <= maxWorkgroupSize; bs += 32) {
-    for (int j = 1; j <= maxWorkgroupSize; ++j) {
+  for (unsigned int bs = 32; bs <= maxWorkgroupSize; bs += 32) {
+    for (unsigned int j = 1; j <= maxWorkgroupSize; ++j) {
       queue.submit([&](sycl::handler &cgh) {
         sycl::stream out(64 * 1024, 80, cgh);
 
@@ -241,7 +241,7 @@ int main() try {
 
   // empiric limit
   auto max_items = maxWorkgroupSize * maxWorkgroupSize;
-  int num_items = 10;
+  unsigned int num_items = 10;
   for (int ksize = 1; ksize < 5; ++ksize) {
     // test multiblock
     std::cout << "multiblock" << std::endl;
