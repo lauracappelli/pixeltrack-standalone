@@ -277,9 +277,9 @@ public:
     bins[w - 1] = j;
   }
 
-  inline __attribute__((always_inline)) void finalize(sycl::nd_item<3> item_ct1, Counter *ws = nullptr) {
+  inline __attribute__((always_inline)) void finalize(sycl::nd_item<3> item_ct1, Counter *ws) {
     assert(off[totbins() - 1] == 0);
-    blockPrefixScan(off, totbins(), ws, item_ct1);
+    cms::sycltools::blockPrefixScan(item_ct1, off, totbins(), ws);
     assert(off[totbins() - 1] == off[totbins() - 2]);
   }
 

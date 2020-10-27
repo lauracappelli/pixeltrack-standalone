@@ -20,35 +20,35 @@ namespace gpuClustering {
                         uint32_t const* __restrict__ moduleId,     // module id of each module
                         int32_t* __restrict__ clusterId,           // modified: cluster id of each pixel
                         uint32_t numElements,
-                        sycl::nd_item<3> item_ct1,
-                        sycl::stream stream_ct1,
+                        sycl::nd_item<3> item,
+                        sycl::stream stream,
                         int32_t* charge,
                         uint8_t* ok,
                         uint16_t* newclusId,
                         uint16_t* ws) {
-    if (item_ct1.get_group(2) >= moduleStart[0])
+    if (item.get_group(2) >= moduleStart[0])
       return;
 
-    auto firstPixel = moduleStart[1 + item_ct1.get_group(2)];
+    auto firstPixel = moduleStart[1 + item.get_group(2)];
     auto thisModuleId = id[firstPixel];
     assert(thisModuleId < MaxNumModules);
-    assert(thisModuleId == moduleId[item_ct1.get_group(2)]);
+    assert(thisModuleId == moduleId[item.get_group(2)]);
 
     auto nclus = nClustersInModule[thisModuleId];
     if (nclus == 0)
       return;
 
-    if (item_ct1.get_local_id(2) == 0 && nclus > MaxNumClustersPerModules)
+    if (item.get_local_id(2) == 0 && nclus > MaxNumClustersPerModules)
       /*
       DPCT1015:183: Output needs adjustment.
       */
-      stream_ct1 << "Warning too many clusters in module %d in block %d: %d > %d\n";
+      stream << "Warning too many clusters in module %d in block %d: %d > %d\n";
 
-    auto first = firstPixel + item_ct1.get_local_id(2);
+    auto first = firstPixel + item.get_local_id(2);
 
     if (nclus > MaxNumClustersPerModules) {
       // remove excess  FIXME find a way to cut charge first....
-      for (auto i = first; i < numElements; i += item_ct1.get_local_range().get(2)) {
+      for (auto i = first; i < numElements; i += item.get_local_range().get(2)) {
         if (id[i] == InvId)
           continue;  // not valid
         if (id[i] != thisModuleId)
@@ -63,17 +63,17 @@ namespace gpuClustering {
 
 #ifdef GPU_DEBUG
     if (thisModuleId % 100 == 1)
-      if (item_ct1.get_local_id(2) == 0)
-        stream_ct1 << "start clusterizer for module " << thisModuleId << " in block " << item_ct1.get_group(2) << sycl::endl;;
+      if (item.get_local_id(2) == 0)
+        stream << "start clusterizer for module " << thisModuleId << " in block " << item.get_group(2) << sycl::endl;;
 #endif
 
     assert(nclus <= MaxNumClustersPerModules);
-    for (auto i = item_ct1.get_local_id(2); i < nclus; i += item_ct1.get_local_range().get(2)) {
+    for (auto i = item.get_local_id(2); i < nclus; i += item.get_local_range().get(2)) {
       charge[i] = 0;
     }
-    item_ct1.barrier();
+    item.barrier();
 
-    for (auto i = first; i < numElements; i += item_ct1.get_local_range().get(2)) {
+    for (auto i = first; i < numElements; i += item.get_local_range().get(2)) {
       if (id[i] == InvId)
         continue;  // not valid
       if (id[i] != thisModuleId)
@@ -81,18 +81,18 @@ namespace gpuClustering {
       sycl::atomic<int32_t, sycl::access::address_space::local_space>(sycl::local_ptr<int32_t>(&charge[clusterId[i]]))
           .fetch_add(adc[i]);
     }
-    item_ct1.barrier();
+    item.barrier();
 
     auto chargeCut = thisModuleId < 96 ? 2000 : 4000;  // move in constants (calib?)
-    for (auto i = item_ct1.get_local_id(2); i < nclus; i += item_ct1.get_local_range().get(2)) {
+    for (auto i = item.get_local_id(2); i < nclus; i += item.get_local_range().get(2)) {
       newclusId[i] = ok[i] = charge[i] > chargeCut ? 1 : 0;
     }
 
-    item_ct1.barrier();
+    item.barrier();
 
     // renumber
 
-    blockPrefixScan(newclusId, nclus, ws, item_ct1);
+    cms::sycltools::blockPrefixScan(item, newclusId, nclus, ws, stream, 16);
 
     assert(nclus >= newclusId[nclus - 1]);
 
@@ -100,17 +100,17 @@ namespace gpuClustering {
       return;
 
     nClustersInModule[thisModuleId] = newclusId[nclus - 1];
-    item_ct1.barrier();
+    item.barrier();
 
     // mark bad cluster again
-    for (auto i = item_ct1.get_local_id(2); i < nclus; i += item_ct1.get_local_range().get(2)) {
+    for (auto i = item.get_local_id(2); i < nclus; i += item.get_local_range().get(2)) {
       if (0 == ok[i])
         newclusId[i] = InvId + 1;
     }
-    item_ct1.barrier();
+    item.barrier();
 
     // reassign id
-    for (auto i = first; i < numElements; i += item_ct1.get_local_range().get(2)) {
+    for (auto i = first; i < numElements; i += item.get_local_range().get(2)) {
       if (id[i] == InvId)
         continue;  // not valid
       if (id[i] != thisModuleId)

@@ -149,7 +149,7 @@ namespace pixelgpudetails {
     return global;
   }
 
-  uint8_t conversionError(uint8_t fedId, uint8_t status, sycl::stream stream_ct1, bool debug = false) {
+  uint8_t conversionError(uint8_t fedId, uint8_t status, sycl::stream stream, bool debug = false) {
     uint8_t errorType = 0;
 
     // debug = true;
@@ -160,7 +160,7 @@ namespace pixelgpudetails {
           /*
           DPCT1015:173: Output needs adjustment.
           */
-          stream_ct1 << "Error in Fed: %i, invalid channel Id (errorType = 35\n)";
+          stream << "Error in Fed: %i, invalid channel Id (errorType = 35\n)";
         errorType = 35;
         break;
       }
@@ -169,7 +169,7 @@ namespace pixelgpudetails {
           /*
           DPCT1015:174: Output needs adjustment.
           */
-          stream_ct1 << "Error in Fed: %i, invalid ROC Id (errorType = 36)\n";
+          stream << "Error in Fed: %i, invalid ROC Id (errorType = 36)\n";
         errorType = 36;
         break;
       }
@@ -178,7 +178,7 @@ namespace pixelgpudetails {
           /*
           DPCT1015:175: Output needs adjustment.
           */
-          stream_ct1 << "Error in Fed: %i, invalid dcol/pixel value (errorType = 37)\n";
+          stream << "Error in Fed: %i, invalid dcol/pixel value (errorType = 37)\n";
         errorType = 37;
         break;
       }
@@ -187,7 +187,7 @@ namespace pixelgpudetails {
           /*
           DPCT1015:176: Output needs adjustment.
           */
-          stream_ct1 << "Error in Fed: %i, dcol/pixel read out of order (errorType = 38)\n";
+          stream << "Error in Fed: %i, dcol/pixel read out of order (errorType = 38)\n";
         errorType = 38;
         break;
       }
@@ -196,7 +196,7 @@ namespace pixelgpudetails {
           /*
           DPCT1015:177: Output needs adjustment.
           */
-          stream_ct1 << "Cabling check returned unexpected result, status = %i\n";
+          stream << "Cabling check returned unexpected result, status = %i\n";
     };
 
     return errorType;
@@ -216,7 +216,7 @@ namespace pixelgpudetails {
                    uint8_t fedId,
                    uint32_t link,
                    const SiPixelFedCablingMapGPU *cablingMap,
-                   sycl::stream stream_ct1,
+                   sycl::stream stream,
                    bool debug = false) {
     uint8_t errorType = (errorWord >> pixelgpudetails::ROC_shift) & pixelgpudetails::ERROR_mask;
     if (errorType < 25)
@@ -232,47 +232,47 @@ namespace pixelgpudetails {
             errorFound = false;
         }
         if (debug and errorFound)
-          stream_ct1 << "Invalid ROC = 25 found (errorType = 25)\n";
+          stream << "Invalid ROC = 25 found (errorType = 25)\n";
         break;
       }
       case (26): {
         if (debug)
-          stream_ct1 << "Gap word found (errorType = 26)\n";
+          stream << "Gap word found (errorType = 26)\n";
         errorFound = true;
         break;
       }
       case (27): {
         if (debug)
-          stream_ct1 << "Dummy word found (errorType = 27)\n";
+          stream << "Dummy word found (errorType = 27)\n";
         errorFound = true;
         break;
       }
       case (28): {
         if (debug)
-          stream_ct1 << "Error fifo nearly full (errorType = 28)\n";
+          stream << "Error fifo nearly full (errorType = 28)\n";
         errorFound = true;
         break;
       }
       case (29): {
         if (debug)
-          stream_ct1 << "Timeout on a channel (errorType = 29)\n";
+          stream << "Timeout on a channel (errorType = 29)\n";
         if ((errorWord >> pixelgpudetails::OMIT_ERR_shift) & pixelgpudetails::OMIT_ERR_mask) {
           if (debug)
-            stream_ct1 << "...first errorType=29 error, this gets masked out\n";
+            stream << "...first errorType=29 error, this gets masked out\n";
         }
         errorFound = true;
         break;
       }
       case (30): {
         if (debug)
-          stream_ct1 << "TBM error trailer (errorType = 30)\n";
+          stream << "TBM error trailer (errorType = 30)\n";
         int StateMatch_bits = 4;
         int StateMatch_shift = 8;
         uint32_t StateMatch_mask = ~(~uint32_t(0) << StateMatch_bits);
         int StateMatch = (errorWord >> StateMatch_shift) & StateMatch_mask;
         if (StateMatch != 1 && StateMatch != 8) {
           if (debug)
-            stream_ct1 << "FED error 30 with unexpected State Bits (errorType = 30)\n";
+            stream << "FED error 30 with unexpected State Bits (errorType = 30)\n";
         }
         if (StateMatch == 1)
           errorType = 40;  // 1=Overflow -> 40, 8=number of ROCs -> 30
@@ -281,7 +281,7 @@ namespace pixelgpudetails {
       }
       case (31): {
         if (debug)
-          stream_ct1 << "Event number error (errorType = 31)\n";
+          stream << "Event number error (errorType = 31)\n";
         errorFound = true;
         break;
       }
@@ -385,13 +385,13 @@ namespace pixelgpudetails {
                         bool useQualityInfo,
                         bool includeErrors,
                         bool debug,
-                        sycl::nd_item<3> item_ct1,
-                        sycl::stream stream_ct1) {
+                        sycl::nd_item<3> item,
+                        sycl::stream stream) {
     //if (threadIdx.x==0) printf("Event: %u blockIdx.x: %u start: %u end: %u\n", eventno, blockIdx.x, begin, end);
 
-    int32_t first = item_ct1.get_local_id(2) + item_ct1.get_group(2) * item_ct1.get_local_range().get(2);
+    int32_t first = item.get_local_id(2) + item.get_group(2) * item.get_local_range().get(2);
     for (int32_t iloop = first, nend = wordCounter; iloop < nend;
-         iloop += item_ct1.get_local_range().get(2) * item_ct1.get_group_range(2)) {
+         iloop += item.get_local_range().get(2) * item.get_group_range(2)) {
       auto gIndex = iloop;
       xx[gIndex] = 0;
       yy[gIndex] = 0;
@@ -415,7 +415,7 @@ namespace pixelgpudetails {
       uint32_t roc = getRoc(ww);    // Extract Roc in link
       pixelgpudetails::DetIdGPU detId = getRawId(cablingMap, fedId, link, roc);
 
-      uint8_t errorType = checkROC(ww, fedId, link, cablingMap, stream_ct1, debug);
+      uint8_t errorType = checkROC(ww, fedId, link, cablingMap, stream, debug);
       skipROC = (roc < pixelgpudetails::maxROCIndex) ? false : (errorType != 0);
       if (includeErrors and skipROC) {
         uint32_t rID = getErrRawID(fedId, ww, errorType, cablingMap, debug);
@@ -462,13 +462,13 @@ namespace pixelgpudetails {
         localPix.col = col;
         if (includeErrors) {
           if (not rocRowColIsValid(row, col)) {
-            uint8_t error = conversionError(fedId, 3, stream_ct1, debug);  //use the device function and fill the arrays
+            uint8_t error = conversionError(fedId, 3, stream, debug);  //use the device function and fill the arrays
             err->push_back(PixelErrorCompact{rawId, ww, error, fedId});
             if (debug)
               /*
               DPCT1015:178: Output needs adjustment.
               */
-              stream_ct1 << "BPIX1  Error status: %i\n";
+              stream << "BPIX1  Error status: %i\n";
             continue;
           }
         }
@@ -481,13 +481,13 @@ namespace pixelgpudetails {
         localPix.row = row;
         localPix.col = col;
         if (includeErrors and not dcolIsValid(dcol, pxid)) {
-          uint8_t error = conversionError(fedId, 3, stream_ct1, debug);
+          uint8_t error = conversionError(fedId, 3, stream, debug);
           err->push_back(PixelErrorCompact{rawId, ww, error, fedId});
           if (debug)
             /*
             DPCT1015:179: Output needs adjustment.
             */
-            stream_ct1 << "Error status: %i %d %d %d %d\n";
+            stream << "Error status: %i %d %d %d %d\n";
           continue;
         }
       }
@@ -505,28 +505,28 @@ namespace pixelgpudetails {
 
   void fillHitsModuleStart(uint32_t const *__restrict__ cluStart,
                            uint32_t *__restrict__ moduleStart,
-                           sycl::nd_item<3> item_ct1,
-                           sycl::stream stream_ct1,
+                           sycl::nd_item<3> item,
+                           sycl::stream stream,
                            uint32_t *ws) {
     assert(gpuClustering::MaxNumModules < 2048);  // easy to extend at least till 32*1024
-    assert(1 == item_ct1.get_group_range(2));
-    assert(0 == item_ct1.get_group(2));
+    assert(1 == item.get_group_range(2));
+    assert(0 == item.get_group(2));
 
-    int first = item_ct1.get_local_id(2);
+    int first = item.get_local_id(2);
 
     // limit to MaxHitsInModule;
-    for (int i = first, iend = gpuClustering::MaxNumModules; i < iend; i += item_ct1.get_local_range().get(2)) {
+    for (int i = first, iend = gpuClustering::MaxNumModules; i < iend; i += item.get_local_range().get(2)) {
       moduleStart[i + 1] = sycl::min(gpuClustering::maxHitsInModule(), (const unsigned int)(cluStart[i]));
     }
 
-    blockPrefixScan(moduleStart + 1, moduleStart + 1, 1024, ws, item_ct1);
-    blockPrefixScan(moduleStart + 1025, moduleStart + 1025, gpuClustering::MaxNumModules - 1024, ws, item_ct1);
+    cms::sycltools::blockPrefixScan(item, moduleStart + 1, moduleStart + 1, 1024, ws, stream, 16);
+    cms::sycltools::blockPrefixScan(item, moduleStart + 1025, moduleStart + 1025, gpuClustering::MaxNumModules - 1024, ws, stream, 16);
 
     for (int i = first + 1025, iend = gpuClustering::MaxNumModules + 1; i < iend;
-         i += item_ct1.get_local_range().get(2)) {
+         i += item.get_local_range().get(2)) {
       moduleStart[i] += moduleStart[1024];
     }
-    item_ct1.barrier();
+    item.barrier();
 
 #ifdef GPU_DEBUG
     assert(0 == moduleStart[0]);
@@ -536,7 +536,7 @@ namespace pixelgpudetails {
     assert(moduleStart[1025] >= moduleStart[1024]);
     assert(moduleStart[gpuClustering::MaxNumModules] >= moduleStart[1025]);
 
-    for (int i = first, iend = gpuClustering::MaxNumModules + 1; i < iend; i += item_ct1.get_local_range().get(2)) {
+    for (int i = first, iend = gpuClustering::MaxNumModules + 1; i < iend; i += item.get_local_range().get(2)) {
       if (0 != i)
         assert(moduleStart[i] >= moduleStart[i - i]);
       // [BPX1, BPX2, BPX3, BPX4,  FP1,  FP2,  FP3,  FN1,  FN2,  FN3, LAST_VALID]
@@ -545,13 +545,13 @@ namespace pixelgpudetails {
         /*
         DPCT1015:180: Output needs adjustment.
         */
-        stream_ct1 << "moduleStart %d %d\n";
+        stream << "moduleStart %d %d\n";
     }
 #endif
 
     // avoid overflow
     constexpr auto MAX_HITS = gpuClustering::MaxNumClusters;
-    for (int i = first, iend = gpuClustering::MaxNumModules + 1; i < iend; i += item_ct1.get_local_range().get(2)) {
+    for (int i = first, iend = gpuClustering::MaxNumModules + 1; i < iend; i += item.get_local_range().get(2)) {
       if (moduleStart[i] > MAX_HITS)
         moduleStart[i] = MAX_HITS;
     }
@@ -601,38 +601,38 @@ namespace pixelgpudetails {
       DPCT1049:183: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
       stream.submit([&](sycl::handler &cgh) {
-        sycl::stream stream_ct1(64 * 1024, 80, cgh);
+        sycl::stream stream(64 * 1024, 80, cgh);
 
-        auto word_d_get_ct3 = word_d.get();
-        auto fedId_d_get_ct4 = fedId_d.get();
-        auto digis_d_xx_ct5 = digis_d.xx();
-        auto digis_d_yy_ct6 = digis_d.yy();
-        auto digis_d_adc_ct7 = digis_d.adc();
-        auto digis_d_pdigi_ct8 = digis_d.pdigi();
-        auto digis_d_rawIdArr_ct9 = digis_d.rawIdArr();
-        auto digis_d_moduleInd_ct10 = digis_d.moduleInd();
-        auto digiErrors_d_error_ct11 = digiErrors_d.error();
+        auto word_d_get = word_d.get();
+        auto fedId_d_get = fedId_d.get();
+        auto digis_d_xx = digis_d.xx();
+        auto digis_d_yy = digis_d.yy();
+        auto digis_d_adc = digis_d.adc();
+        auto digis_d_pdigi = digis_d.pdigi();
+        auto digis_d_rawIdArr = digis_d.rawIdArr();
+        auto digis_d_moduleInd = digis_d.moduleInd();
+        auto digiErrors_d_error = digiErrors_d.error();
 
         cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, blocks) * sycl::range(1, 1, threadsPerBlock),
                                         sycl::range(1, 1, threadsPerBlock)),
-                         [=](sycl::nd_item<3> item_ct1) {
+                         [=](sycl::nd_item<3> item) {
                            RawToDigi_kernel(cablingMap,
                                             modToUnp,
                                             wordCounter,
-                                            word_d_get_ct3,
-                                            fedId_d_get_ct4,
-                                            digis_d_xx_ct5,
-                                            digis_d_yy_ct6,
-                                            digis_d_adc_ct7,
-                                            digis_d_pdigi_ct8,
-                                            digis_d_rawIdArr_ct9,
-                                            digis_d_moduleInd_ct10,
-                                            digiErrors_d_error_ct11,
+                                            word_d_get,
+                                            fedId_d_get,
+                                            digis_d_xx,
+                                            digis_d_yy,
+                                            digis_d_adc,
+                                            digis_d_pdigi,
+                                            digis_d_rawIdArr,
+                                            digis_d_moduleInd,
+                                            digiErrors_d_error,
                                             useQualityInfo,
                                             includeErrors,
                                             debug,
-                                            item_ct1,
-                                            stream_ct1);
+                                            item,
+                                            stream);
                          });
       });
 #ifdef GPU_DEBUG
@@ -656,30 +656,30 @@ namespace pixelgpudetails {
       DPCT1049:186: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
       stream.submit([&](sycl::handler &cgh) {
-        sycl::stream stream_ct1(64 * 1024, 80, cgh);
+        sycl::stream stream(64 * 1024, 80, cgh);
 
-        auto digis_d_moduleInd_ct0 = digis_d.moduleInd();
-        auto digis_d_c_xx_ct1 = digis_d.c_xx();
-        auto digis_d_c_yy_ct2 = digis_d.c_yy();
-        auto digis_d_adc_ct3 = digis_d.adc();
-        auto clusters_d_moduleStart_ct6 = clusters_d.moduleStart();
-        auto clusters_d_clusInModule_ct7 = clusters_d.clusInModule();
-        auto clusters_d_clusModuleStart_ct8 = clusters_d.clusModuleStart();
+        auto digis_d_moduleInd = digis_d.moduleInd();
+        auto digis_d_c_xx = digis_d.c_xx();
+        auto digis_d_c_yy = digis_d.c_yy();
+        auto digis_d_adc = digis_d.adc();
+        auto clusters_d_moduleStart = clusters_d.moduleStart();
+        auto clusters_d_clusInModule = clusters_d.clusInModule();
+        auto clusters_d_clusModuleStart = clusters_d.clusModuleStart();
 
         cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, blocks) * sycl::range(1, 1, threadsPerBlock),
                                         sycl::range(1, 1, threadsPerBlock)),
-                         [=](sycl::nd_item<3> item_ct1) {
-                           gpuCalibPixel::calibDigis(digis_d_moduleInd_ct0,
-                                                     digis_d_c_xx_ct1,
-                                                     digis_d_c_yy_ct2,
-                                                     digis_d_adc_ct3,
+                         [=](sycl::nd_item<3> item) {
+                           gpuCalibPixel::calibDigis(digis_d_moduleInd,
+                                                     digis_d_c_xx,
+                                                     digis_d_c_yy,
+                                                     digis_d_adc,
                                                      gains,
                                                      wordCounter,
-                                                     clusters_d_moduleStart_ct6,
-                                                     clusters_d_clusInModule_ct7,
-                                                     clusters_d_clusModuleStart_ct8,
-                                                     item_ct1,
-                                                     stream_ct1);
+                                                     clusters_d_moduleStart,
+                                                     clusters_d_clusInModule,
+                                                     clusters_d_clusModuleStart,
+                                                     item,
+                                                     stream);
                          });
       });
 #ifdef GPU_DEBUG
@@ -695,16 +695,16 @@ namespace pixelgpudetails {
       DPCT1049:189: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
       stream.submit([&](sycl::handler &cgh) {
-        auto digis_d_c_moduleInd_ct0 = digis_d.c_moduleInd();
-        auto clusters_d_moduleStart_ct1 = clusters_d.moduleStart();
-        auto digis_d_clus_ct2 = digis_d.clus();
+        auto digis_d_c_moduleInd = digis_d.c_moduleInd();
+        auto clusters_d_moduleStart = clusters_d.moduleStart();
+        auto digis_d_clus = digis_d.clus();
 
         cgh.parallel_for(
             sycl::nd_range(sycl::range(1, 1, blocks) * sycl::range(1, 1, threadsPerBlock),
                            sycl::range(1, 1, threadsPerBlock)),
-            [=](sycl::nd_item<3> item_ct1) {
+            [=](sycl::nd_item<3> item) {
               countModules(
-                  digis_d_c_moduleInd_ct0, clusters_d_moduleStart_ct1, digis_d_clus_ct2, wordCounter, item_ct1);
+                  digis_d_c_moduleInd, clusters_d_moduleStart, digis_d_clus, wordCounter, item);
             });
       });
 
@@ -720,51 +720,51 @@ namespace pixelgpudetails {
       DPCT1049:192: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
       stream.submit([&](sycl::handler &cgh) {
-        sycl::stream stream_ct1(64 * 1024, 80, cgh);
+        sycl::stream stream(64 * 1024, 80, cgh);
 
-        auto gMaxHit_ptr_ct1 = gMaxHit.get_ptr();
+        auto gMaxHit_ptr = gMaxHit.get_ptr();
 
-        sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> msize_acc_ct1(cgh);
-        sycl::accessor<Hist, 0, sycl::access::mode::read_write, sycl::access::target::local> hist_acc_ct1(cgh);
+        sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> msize_acc(cgh);
+        sycl::accessor<Hist, 0, sycl::access::mode::read_write, sycl::access::target::local> hist_acc(cgh);
         sycl::accessor<typename Hist::Counter, 1, sycl::access::mode::read_write, sycl::access::target::local>
-            ws_acc_ct1(sycl::range(32), cgh);
-        sycl::accessor<uint32_t, 0, sycl::access::mode::read_write, sycl::access::target::local> totGood_acc_ct1(cgh);
-        sycl::accessor<uint32_t, 0, sycl::access::mode::read_write, sycl::access::target::local> n40_acc_ct1(cgh);
-        sycl::accessor<uint32_t, 0, sycl::access::mode::read_write, sycl::access::target::local> n60_acc_ct1(cgh);
-        sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> n0_acc_ct1(cgh);
+            ws_acc(sycl::range(32), cgh);
+        sycl::accessor<uint32_t, 0, sycl::access::mode::read_write, sycl::access::target::local> totGood_acc(cgh);
+        sycl::accessor<uint32_t, 0, sycl::access::mode::read_write, sycl::access::target::local> n40_acc(cgh);
+        sycl::accessor<uint32_t, 0, sycl::access::mode::read_write, sycl::access::target::local> n60_acc(cgh);
+        sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> n0_acc(cgh);
         sycl::accessor<unsigned int, 0, sycl::access::mode::read_write, sycl::access::target::local>
-            foundClusters_acc_ct1(cgh);
+            foundClusters_acc(cgh);
 
-        auto digis_d_c_moduleInd_ct0 = digis_d.c_moduleInd();
-        auto digis_d_c_xx_ct1 = digis_d.c_xx();
-        auto digis_d_c_yy_ct2 = digis_d.c_yy();
-        auto clusters_d_c_moduleStart_ct3 = clusters_d.c_moduleStart();
-        auto clusters_d_clusInModule_ct4 = clusters_d.clusInModule();
-        auto clusters_d_moduleId_ct5 = clusters_d.moduleId();
-        auto digis_d_clus_ct6 = digis_d.clus();
+        auto digis_d_c_moduleInd = digis_d.c_moduleInd();
+        auto digis_d_c_xx = digis_d.c_xx();
+        auto digis_d_c_yy = digis_d.c_yy();
+        auto clusters_d_c_moduleStart = clusters_d.c_moduleStart();
+        auto clusters_d_clusInModule = clusters_d.clusInModule();
+        auto clusters_d_moduleId = clusters_d.moduleId();
+        auto digis_d_clus = digis_d.clus();
 
         cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, blocks) * sycl::range(1, 1, threadsPerBlock),
                                         sycl::range(1, 1, threadsPerBlock)),
-                         [=](sycl::nd_item<3> item_ct1) {
-                           findClus(digis_d_c_moduleInd_ct0,
-                                    digis_d_c_xx_ct1,
-                                    digis_d_c_yy_ct2,
-                                    clusters_d_c_moduleStart_ct3,
-                                    clusters_d_clusInModule_ct4,
-                                    clusters_d_moduleId_ct5,
-                                    digis_d_clus_ct6,
+                         [=](sycl::nd_item<3> item) {
+                           findClus(digis_d_c_moduleInd,
+                                    digis_d_c_xx,
+                                    digis_d_c_yy,
+                                    clusters_d_c_moduleStart,
+                                    clusters_d_clusInModule,
+                                    clusters_d_moduleId,
+                                    digis_d_clus,
                                     wordCounter,
-                                    item_ct1,
-                                    stream_ct1,
-                                    gMaxHit_ptr_ct1,
-                                    msize_acc_ct1.get_pointer(),
-                                    hist_acc_ct1.get_pointer(),
-                                    ws_acc_ct1.get_pointer(),
-                                    totGood_acc_ct1.get_pointer(),
-                                    n40_acc_ct1.get_pointer(),
-                                    n60_acc_ct1.get_pointer(),
-                                    n0_acc_ct1.get_pointer(),
-                                    foundClusters_acc_ct1.get_pointer());
+                                    item,
+                                    stream,
+                                    gMaxHit_ptr,
+                                    msize_acc.get_pointer(),
+                                    hist_acc.get_pointer(),
+                                    ws_acc.get_pointer(),
+                                    totGood_acc.get_pointer(),
+                                    n40_acc.get_pointer(),
+                                    n60_acc.get_pointer(),
+                                    n0_acc.get_pointer(),
+                                    foundClusters_acc.get_pointer());
                          });
       });
 #ifdef GPU_DEBUG
@@ -776,40 +776,40 @@ namespace pixelgpudetails {
       DPCT1049:195: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
       stream.submit([&](sycl::handler &cgh) {
-        sycl::stream stream_ct1(64 * 1024, 80, cgh);
+        sycl::stream stream(64 * 1024, 80, cgh);
 
-        sycl::accessor<int32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> charge_acc_ct1(
+        sycl::accessor<int32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> charge_acc(
             sycl::range(1024 /*MaxNumClustersPerModules*/), cgh);
-        sycl::accessor<uint8_t, 1, sycl::access::mode::read_write, sycl::access::target::local> ok_acc_ct1(
+        sycl::accessor<uint8_t, 1, sycl::access::mode::read_write, sycl::access::target::local> ok_acc(
             sycl::range(1024 /*MaxNumClustersPerModules*/), cgh);
-        sycl::accessor<uint16_t, 1, sycl::access::mode::read_write, sycl::access::target::local> newclusId_acc_ct1(
+        sycl::accessor<uint16_t, 1, sycl::access::mode::read_write, sycl::access::target::local> newclusId_acc(
             sycl::range(1024 /*MaxNumClustersPerModules*/), cgh);
-        sycl::accessor<uint16_t, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc_ct1(
+        sycl::accessor<uint16_t, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc(
             sycl::range(32), cgh);
 
-        auto digis_d_moduleInd_ct0 = digis_d.moduleInd();
-        auto digis_d_c_adc_ct1 = digis_d.c_adc();
-        auto clusters_d_c_moduleStart_ct2 = clusters_d.c_moduleStart();
-        auto clusters_d_clusInModule_ct3 = clusters_d.clusInModule();
-        auto clusters_d_c_moduleId_ct4 = clusters_d.c_moduleId();
-        auto digis_d_clus_ct5 = digis_d.clus();
+        auto digis_d_moduleInd = digis_d.moduleInd();
+        auto digis_d_c_adc = digis_d.c_adc();
+        auto clusters_d_c_moduleStart = clusters_d.c_moduleStart();
+        auto clusters_d_clusInModule = clusters_d.clusInModule();
+        auto clusters_d_c_moduleId = clusters_d.c_moduleId();
+        auto digis_d_clus = digis_d.clus();
 
         cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, blocks) * sycl::range(1, 1, threadsPerBlock),
                                         sycl::range(1, 1, threadsPerBlock)),
-                         [=](sycl::nd_item<3> item_ct1) {
-                           clusterChargeCut(digis_d_moduleInd_ct0,
-                                            digis_d_c_adc_ct1,
-                                            clusters_d_c_moduleStart_ct2,
-                                            clusters_d_clusInModule_ct3,
-                                            clusters_d_c_moduleId_ct4,
-                                            digis_d_clus_ct5,
+                         [=](sycl::nd_item<3> item) {
+                           clusterChargeCut(digis_d_moduleInd,
+                                            digis_d_c_adc,
+                                            clusters_d_c_moduleStart,
+                                            clusters_d_clusInModule,
+                                            clusters_d_c_moduleId,
+                                            digis_d_clus,
                                             wordCounter,
-                                            item_ct1,
-                                            stream_ct1,
-                                            charge_acc_ct1.get_pointer(),
-                                            ok_acc_ct1.get_pointer(),
-                                            newclusId_acc_ct1.get_pointer(),
-                                            ws_acc_ct1.get_pointer());
+                                            item,
+                                            stream,
+                                            charge_acc.get_pointer(),
+                                            ok_acc.get_pointer(),
+                                            newclusId_acc.get_pointer(),
+                                            ws_acc.get_pointer());
                          });
       });
 
@@ -823,21 +823,21 @@ namespace pixelgpudetails {
       DPCT1049:197: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
       */
       stream.submit([&](sycl::handler &cgh) {
-        sycl::stream stream_ct1(64 * 1024, 80, cgh);
+        sycl::stream stream(64 * 1024, 80, cgh);
 
-        sycl::accessor<uint32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc_ct1(
+        sycl::accessor<uint32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc(
             sycl::range(32), cgh);
 
-        auto clusters_d_c_clusInModule_ct0 = clusters_d.c_clusInModule();
-        auto clusters_d_clusModuleStart_ct1 = clusters_d.clusModuleStart();
+        auto clusters_d_c_clusInModule = clusters_d.c_clusInModule();
+        auto clusters_d_clusModuleStart = clusters_d.clusModuleStart();
 
         cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 1024), sycl::range(1, 1, 1024)),
-                         [=](sycl::nd_item<3> item_ct1) {
-                           fillHitsModuleStart(clusters_d_c_clusInModule_ct0,
-                                               clusters_d_clusModuleStart_ct1,
-                                               item_ct1,
-                                               stream_ct1,
-                                               ws_acc_ct1.get_pointer());
+                         [=](sycl::nd_item<3> item) {
+                           fillHitsModuleStart(clusters_d_c_clusInModule,
+                                               clusters_d_clusModuleStart,
+                                               item,
+                                               stream,
+                                               ws_acc.get_pointer());
                          });
       });
 
