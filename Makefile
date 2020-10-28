@@ -1,5 +1,10 @@
 export BASE_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
+# general variables
+EMPTY :=
+SPACE := $(EMPTY) $(EMPTY)
+COMMA := ,
+
 # Build flags
 export CXX := g++
 USER_CXXFLAGS :=
@@ -44,6 +49,7 @@ endef
 $(eval $(call CUFLAGS_template,$(CUDA_ARCH),))
 export CUDA_CUFLAGS
 export CUDA_DLINKFLAGS
+CUDA_LLVM_FLAGS := --cuda-path=$(CUDA_BASE) --offload-arch=$(subst $(SPACE),$(COMMA),$(foreach ARCH,$(CUDA_ARCH),sm_$(ARCH))) -Wno-unknown-cuda-version
 
 # Input data definitions
 DATA_BASE := $(BASE_DIR)/data
@@ -129,33 +135,36 @@ export KOKKOS_DLINKFLAGS := $(KOKKOS_CUDA_DLINKFLAGS)
 export NVCC_WRAPPER_DEFAULT_COMPILER := $(CXX)
 
 # Intel oneAPI
-ONEAPI_BASE := /opt/intel/oneapi
-ONEAPI_ENV  := $(ONEAPI_BASE)/setvars.sh
-DPCT_BASE   := $(ONEAPI_BASE)/dpcpp-ct/2021.1-beta10
-SYCL_BASE   := $(ONEAPI_BASE)/compiler/2021.1-beta10/linux
+ONEAPI_ENV  := /opt/intel/oneapi/setvars.sh
+DPCT_BASE   := /opt/intel/oneapi/dpcpp-ct/2021.1-beta10
+SYCL_BASE   := /opt/intel/oneapi/compiler/2021.1-beta10/linux
 SYCL_UNSUPPORTED_CXXFLAGS := --param vect-max-version-for-alias-checks=50 -Wno-non-template-friend -Werror=format-contains-nul -Werror=return-local-addr -Werror=unused-but-set-variable
 
 # to use a different toolchain
 #   - unset ONEAPI_ENV
 #   - set SYCL_BASE appropriately
 
-# check if libraries are under lib or lib64
 ifdef SYCL_BASE
-ifneq ($(wildcard $(SYCL_BASE)/lib/libsycl.so),)
-SYCL_LIBDIR := $(SYCL_BASE)/lib
-else ifneq ($(wildcard $(SYCL_BASE)/lib64/libsycl.so),)
-SYCL_LIBDIR := $(SYCL_BASE)/lib64
-else
-SYCL_BASE :=
-endif
+  # check that the libraries are present, and if they are under lib/ or lib64/
+  ifneq ($(wildcard $(SYCL_BASE)/lib/libsycl.so),)
+    SYCL_LIBDIR := $(SYCL_BASE)/lib
+  else ifneq ($(wildcard $(SYCL_BASE)/lib64/libsycl.so),)
+    SYCL_LIBDIR := $(SYCL_BASE)/lib64
+  else
+    SYCL_BASE :=
+  endif
 endif
 ifdef SYCL_BASE
-export SYCL_CXX      := $(SYCL_BASE)/bin/dpcpp
-export SYCL_CXXFLAGS := -fsycl -I$(DPCT_BASE)/include $(filter-out $(SYCL_UNSUPPORTED_CXXFLAGS),$(CXXFLAGS))
-ifdef CUDA_BASE
-export SYCL_CUDA_PLUGIN := $(wildcard $(SYCL_LIBDIR)/libpi_cuda.so)
-export SYCL_CUDA_FLAGS  := --cuda-path=$(CUDA_BASE) -Wno-unknown-cuda-version
-endif
+  export SYCL_CXX      := $(SYCL_BASE)/bin/clang++
+  export SYCL_CXXFLAGS := -fsycl -fsycl-unnamed-lambda -I$(DPCT_BASE)/include $(filter-out $(SYCL_UNSUPPORTED_CXXFLAGS),$(CXXFLAGS)) -Wno-unused-function -Wno-unused-command-line-argument
+  export SYCL_TARGETS  := -fsycl-targets=spir64-unknown-unknown-sycldevice
+  # check if CUDA is available and if the SYCL compiler supports the CUDA backend
+  ifdef CUDA_BASE
+    ifneq ($(wildcard $(SYCL_LIBDIR)/libpi_cuda.so),)
+      export SYCL_CXXFLAGS += $(CUDA_LLVM_FLAGS)
+      export SYCL_TARGETS  := -fsycl-targets=spir64-unknown-unknown-sycldevice,nvptx64-nvidia-cuda-sycldevice
+    endif
+  endif
 endif
 
 # force the recreation of the environment file any time the Makefile is updated, before building any other target
