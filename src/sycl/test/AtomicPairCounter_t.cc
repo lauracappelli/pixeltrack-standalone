@@ -5,8 +5,8 @@
 
 #include "SYCLCore/AtomicPairCounter.h"
 
-void update(AtomicPairCounter *dc, uint32_t *ind, uint32_t *cont, uint32_t n, sycl::nd_item<3> item_ct1) {
-  auto i = item_ct1.get_group(2) * item_ct1.get_local_range().get(2) + item_ct1.get_local_id(2);
+void update(AtomicPairCounter *dc, uint32_t *ind, uint32_t *cont, uint32_t n, sycl::nd_item<3> item) {
+  auto i = item.get_group(2) * item.get_local_range().get(2) + item.get_local_id(2);
   if (i >= n)
     return;
 
@@ -24,9 +24,8 @@ void finalize(AtomicPairCounter const *dc, uint32_t *ind, uint32_t *cont, uint32
   ind[n] = dc->get().n;
 }
 
-void verify(
-    AtomicPairCounter const *dc, uint32_t const *ind, uint32_t const *cont, uint32_t n, sycl::nd_item<3> item_ct1) {
-  auto i = item_ct1.get_group(2) * item_ct1.get_local_range().get(2) + item_ct1.get_local_id(2);
+void verify(AtomicPairCounter const *dc, uint32_t const *ind, uint32_t const *cont, uint32_t n, sycl::nd_item<3> item) {
+  auto i = item.get_group(2) * item.get_local_range().get(2) + item.get_local_id(2);
   if (i >= n)
     return;
   //assert(0 == ind[0]);
@@ -37,7 +36,7 @@ void verify(
   auto k = cont[ib++];
   //assert(k < n);
   //for (; ib < ie; ++ib)
-    //assert(cont[ib] == k);
+  //assert(cont[ib] == k);
 }
 
 #include <iostream>
@@ -57,16 +56,16 @@ int main() {
   m_d = (uint32_t *)sycl::malloc_device(M * sizeof(int), queue);
 
   queue.submit([&](sycl::handler &cgh) {
-    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 2000) * sycl::range(1, 1, 512), sycl::range(1, 1, 512)),
-                     [=](sycl::nd_item<3> item_ct1) { update(dc_d, n_d, m_d, 10000, item_ct1); });
+    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 2000 * 512), sycl::range(1, 1, 512)),
+                     [=](sycl::nd_item<3> item) { update(dc_d, n_d, m_d, 10000, item); });
   });
   queue.submit([&](sycl::handler &cgh) {
     cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 1), sycl::range(1, 1, 1)),
-                     [=](sycl::nd_item<3> item_ct1) { finalize(dc_d, n_d, m_d, 10000); });
+                     [=](sycl::nd_item<3> item) { finalize(dc_d, n_d, m_d, 10000); });
   });
   queue.submit([&](sycl::handler &cgh) {
-    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 2000) * sycl::range(1, 1, 512), sycl::range(1, 1, 512)),
-                     [=](sycl::nd_item<3> item_ct1) { verify(dc_d, n_d, m_d, 10000, item_ct1); });
+    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 2000 * 512), sycl::range(1, 1, 512)),
+                     [=](sycl::nd_item<3> item) { verify(dc_d, n_d, m_d, 10000, item); });
   });
 
   AtomicPairCounter dc;

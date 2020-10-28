@@ -21,7 +21,7 @@ namespace gpuClustering {
                         int32_t* __restrict__ clusterId,           // modified: cluster id of each pixel
                         uint32_t numElements,
                         sycl::nd_item<3> item,
-                        sycl::stream stream,
+                        sycl::stream out,
                         int32_t* charge,
                         uint8_t* ok,
                         uint16_t* newclusId,
@@ -42,7 +42,7 @@ namespace gpuClustering {
       /*
       DPCT1015:183: Output needs adjustment.
       */
-      stream << "Warning too many clusters in module %d in block %d: %d > %d\n";
+      out << "Warning too many clusters in module %d in block %d: %d > %d\n";
 
     auto first = firstPixel + item.get_local_id(2);
 
@@ -64,7 +64,7 @@ namespace gpuClustering {
 #ifdef GPU_DEBUG
     if (thisModuleId % 100 == 1)
       if (item.get_local_id(2) == 0)
-        stream << "start clusterizer for module " << thisModuleId << " in block " << item.get_group(2) << sycl::endl;;
+        out << "start clusterizer for module " << thisModuleId << " in block " << item.get_group(2) << sycl::endl;;
 #endif
 
     //assert(nclus <= MaxNumClustersPerModules);
@@ -92,7 +92,7 @@ namespace gpuClustering {
 
     // renumber
 
-    cms::sycltools::blockPrefixScan(item, newclusId, nclus, ws, stream, 16);
+    cms::sycltools::blockPrefixScan(item, newclusId, nclus, ws, out, 16);
 
     //assert(nclus >= newclusId[nclus - 1]);
 

@@ -82,11 +82,8 @@ void verify(Assoc* __restrict__ assoc) {
 }
 
 template <typename Assoc>
-void fillBulk(AtomicPairCounter* apc,
-              TK const* __restrict__ tk,
-              Assoc* __restrict__ assoc,
-              int32_t n,
-              sycl::nd_item<3> item) {
+void fillBulk(
+    AtomicPairCounter* apc, TK const* __restrict__ tk, Assoc* __restrict__ assoc, int32_t n, sycl::nd_item<3> item) {
   int first = item.get_local_range().get(2) * item.get_group(2) + item.get_local_id(2);
   for (int k = first; k < n; k += item.get_group_range(2) * item.get_local_range().get(2)) {
     auto m = tk[k][3] < MaxElem ? 4 : 3;
@@ -95,15 +92,16 @@ void fillBulk(AtomicPairCounter* apc,
 }
 
 template <typename Assoc>
-void verifyBulk(Assoc const* __restrict__ assoc, AtomicPairCounter const* apc, sycl::stream stream) {
+void verifyBulk(Assoc const* __restrict__ assoc, AtomicPairCounter const* apc, sycl::stream out) {
   if (apc->get().m >= Assoc::nbins())
-    stream << "Overflow %d %d\n";
+    out << "Overflow %d %d\n";
   //assert(assoc->size() < Assoc::capacity());
 }
 
 int main() {
   std::cout << "OneToManyAssoc " << sizeof(Assoc) << ' ' << Assoc::nbins() << ' ' << Assoc::capacity() << std::endl;
-  std::cout << "OneToManyAssoc (small) " << sizeof(SmallAssoc) << ' ' << SmallAssoc::nbins() << ' ' << SmallAssoc::capacity() << std::endl;
+  std::cout << "OneToManyAssoc (small) " << sizeof(SmallAssoc) << ' ' << SmallAssoc::nbins() << ' '
+            << SmallAssoc::capacity() << std::endl;
 
   std::mt19937 eng;
   std::geometric_distribution<int> rdm(0.8);
@@ -163,9 +161,8 @@ int main() {
     auto v_d_get = v_d.get();
     auto a_d_get = a_d.get();
 
-    cgh.parallel_for(
-        sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item) { count(v_d_get, a_d_get, N, item); });
+    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, nBlocks * nThreads), sycl::range(1, 1, nThreads)),
+                     [=](sycl::nd_item<3> item) { count(v_d_get, a_d_get, N, item); });
   });
 
   cms::sycltools::launchFinalize(a_d.get(), queue);
@@ -179,9 +176,8 @@ int main() {
     auto v_d_get = v_d.get();
     auto a_d_get = a_d.get();
 
-    cgh.parallel_for(
-        sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item) { fill(v_d_get, a_d_get, N, item); });
+    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, nBlocks * nThreads), sycl::range(1, 1, nThreads)),
+                     [=](sycl::nd_item<3> item) { fill(v_d_get, a_d_get, N, item); });
   });
 
   Assoc la;
@@ -215,24 +211,22 @@ int main() {
     auto v_d_get = v_d.get();
     auto a_d_get = a_d.get();
 
-    cgh.parallel_for(
-        sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item) { fillBulk(dc_d, v_d_get, a_d_get, N, item); });
+    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, nBlocks * nThreads), sycl::range(1, 1, nThreads)),
+                     [=](sycl::nd_item<3> item) { fillBulk(dc_d, v_d_get, a_d_get, N, item); });
   });
   queue.submit([&](sycl::handler& cgh) {
     auto a_d_get = a_d.get();
 
-    cgh.parallel_for(
-        sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item) { cms::sycltools::finalizeBulk(dc_d, a_d_get, item); });
+    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, nBlocks * nThreads), sycl::range(1, 1, nThreads)),
+                     [=](sycl::nd_item<3> item) { cms::sycltools::finalizeBulk(dc_d, a_d_get, item); });
   });
   queue.submit([&](sycl::handler& cgh) {
-    sycl::stream stream(64 * 1024, 80, cgh);
+    sycl::stream out(64 * 1024, 80, cgh);
 
     auto a_d_get = a_d.get();
 
     cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 1), sycl::range(1, 1, 1)),
-                     [=](sycl::nd_item<3> item) { verifyBulk(a_d_get, dc_d, stream); });
+                     [=](sycl::nd_item<3> item) { verifyBulk(a_d_get, dc_d, out); });
   });
 
   queue.memcpy(&la, a_d.get(), sizeof(Assoc)).wait();
@@ -243,24 +237,22 @@ int main() {
     auto v_d_get = v_d.get();
     auto sa_d_get = sa_d.get();
 
-    cgh.parallel_for(
-        sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item) { fillBulk(dc_d, v_d_get, sa_d_get, N, item); });
+    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, nBlocks * nThreads), sycl::range(1, 1, nThreads)),
+                     [=](sycl::nd_item<3> item) { fillBulk(dc_d, v_d_get, sa_d_get, N, item); });
   });
   queue.submit([&](sycl::handler& cgh) {
     auto sa_d_get = sa_d.get();
 
-    cgh.parallel_for(
-        sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item) { cms::sycltools::finalizeBulk(dc_d, sa_d_get, item); });
+    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, nBlocks * nThreads), sycl::range(1, 1, nThreads)),
+                     [=](sycl::nd_item<3> item) { cms::sycltools::finalizeBulk(dc_d, sa_d_get, item); });
   });
   queue.submit([&](sycl::handler& cgh) {
-    sycl::stream stream(64 * 1024, 80, cgh);
+    sycl::stream out(64 * 1024, 80, cgh);
 
     auto sa_d_get = sa_d.get();
 
     cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 1), sycl::range(1, 1, 1)),
-                     [=](sycl::nd_item<3> item) { verifyBulk(sa_d_get, dc_d, stream); });
+                     [=](sycl::nd_item<3> item) { verifyBulk(sa_d_get, dc_d, out); });
   });
 
   std::cout << "final counter value " << dc.get().n << ' ' << dc.get().m << std::endl;
@@ -290,22 +282,18 @@ int main() {
     auto v_d_get = v_d.get();
     auto m1_d_get = m1_d.get();
 
-    cgh.parallel_for(
-        sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item) { countMulti(v_d_get, m1_d_get, N, item); });
+    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, nBlocks * nThreads), sycl::range(1, 1, nThreads)),
+                     [=](sycl::nd_item<3> item) { countMulti(v_d_get, m1_d_get, N, item); });
   });
   queue.submit([&](sycl::handler& cgh) {
-    sycl::accessor<Multiplicity::CountersOnly, 0, sycl::access::mode::read_write, sycl::access::target::local>
-        local_acc(cgh);
+    sycl::accessor<Multiplicity::CountersOnly, 0, sycl::access_mode::read_write, sycl::target::local> local_acc(cgh);
 
     auto v_d_get = v_d.get();
     auto m2_d_get = m2_d.get();
 
     cgh.parallel_for(
-        sycl::nd_range(sycl::range(1, 1, nBlocks) * sycl::range(1, 1, nThreads), sycl::range(1, 1, nThreads)),
-        [=](sycl::nd_item<3> item) {
-          countMultiLocal(v_d_get, m2_d_get, N, item, local_acc.get_pointer());
-        });
+        sycl::nd_range(sycl::range(1, 1, nBlocks * nThreads), sycl::range(1, 1, nThreads)),
+        [=](sycl::nd_item<3> item) { countMultiLocal(v_d_get, m2_d_get, N, item, local_acc.get_pointer()); });
   });
   queue.submit([&](sycl::handler& cgh) {
     auto m1_d_get = m1_d.get();

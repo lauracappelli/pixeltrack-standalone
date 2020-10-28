@@ -8,15 +8,15 @@
 
 #include "SYCLCore/GPUSimpleVector.h"
 
-void vector_pushback(GPU::SimpleVector<int> *foo, sycl::nd_item<3> item_ct1) {
-  auto index = item_ct1.get_local_id(2) + item_ct1.get_group(2) * item_ct1.get_local_range().get(2);
+void vector_pushback(GPU::SimpleVector<int> *foo, sycl::nd_item<3> item) {
+  auto index = item.get_local_id(2) + item.get_group(2) * item.get_local_range().get(2);
   foo->push_back(index);
 }
 
 void vector_reset(GPU::SimpleVector<int> *foo) { foo->reset(); }
 
-void vector_emplace_back(GPU::SimpleVector<int> *foo, sycl::nd_item<3> item_ct1) {
-  auto index = item_ct1.get_local_id(2) + item_ct1.get_group(2) * item_ct1.get_local_range().get(2);
+void vector_emplace_back(GPU::SimpleVector<int> *foo, sycl::nd_item<3> item) {
+  auto index = item.get_local_id(2) + item.get_group(2) * item.get_local_range().get(2);
   foo->emplace_back(index);
 }
 
@@ -51,9 +51,9 @@ int main() {
   DPCT1049:162: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
   */
   queue.submit([&](sycl::handler &cgh) {
-    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, numBlocks) * sycl::range(1, 1, numThreadsPerBlock),
-                                    sycl::range(1, 1, numThreadsPerBlock)),
-                     [=](sycl::nd_item<3> item_ct1) { vector_pushback(d_obj_ptr, item_ct1); });
+    cgh.parallel_for(
+        sycl::nd_range(sycl::range(1, 1, numBlocks * numThreadsPerBlock), sycl::range(1, 1, numThreadsPerBlock)),
+        [=](sycl::nd_item<3> item) { vector_pushback(d_obj_ptr, item); });
   });
   queue.wait_and_throw();
 
@@ -64,9 +64,9 @@ int main() {
   DPCT1049:164: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
   */
   queue.submit([&](sycl::handler &cgh) {
-    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, numBlocks) * sycl::range(1, 1, numThreadsPerBlock),
-                                    sycl::range(1, 1, numThreadsPerBlock)),
-                     [=](sycl::nd_item<3> item_ct1) { vector_reset(d_obj_ptr); });
+    cgh.parallel_for(
+        sycl::nd_range(sycl::range(1, 1, numBlocks * numThreadsPerBlock), sycl::range(1, 1, numThreadsPerBlock)),
+        [=](sycl::nd_item<3> item) { vector_reset(d_obj_ptr); });
   });
   queue.wait_and_throw();
 
@@ -78,9 +78,9 @@ int main() {
   DPCT1049:166: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
   */
   queue.submit([&](sycl::handler &cgh) {
-    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, numBlocks) * sycl::range(1, 1, numThreadsPerBlock),
-                                    sycl::range(1, 1, numThreadsPerBlock)),
-                     [=](sycl::nd_item<3> item_ct1) { vector_emplace_back(d_obj_ptr, item_ct1); });
+    cgh.parallel_for(
+        sycl::nd_range(sycl::range(1, 1, numBlocks * numThreadsPerBlock), sycl::range(1, 1, numThreadsPerBlock)),
+        [=](sycl::nd_item<3> item) { vector_emplace_back(d_obj_ptr, item); });
   });
   queue.wait_and_throw();
 

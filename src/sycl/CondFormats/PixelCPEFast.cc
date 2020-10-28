@@ -7,13 +7,6 @@
 #include "Geometry/phase1PixelTopology.h"
 #include "CondFormats/PixelCPEFast.h"
 
-// Services
-// this is needed to get errors from templates
-
-namespace {
-  constexpr float micronsToCm = 1.0e-4;
-}
-
 //-----------------------------------------------------------------------------
 //!  The constructor.
 //-----------------------------------------------------------------------------

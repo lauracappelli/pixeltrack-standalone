@@ -242,15 +242,13 @@ int main(void) {
               << " threads\n";
 
     queue.submit([&](sycl::handler &cgh) {
-      auto d_id_get_ct0 = d_id.get();
-      auto d_moduleStart_get_ct1 = d_moduleStart.get();
-      auto d_clus_get_ct2 = d_clus.get();
+      auto d_id_get = d_id.get();
+      auto d_moduleStart_get = d_moduleStart.get();
+      auto d_clus_get = d_clus.get();
 
-      cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, blocksPerGrid) * sycl::range(1, 1, threadsPerBlock),
-                                      sycl::range(1, 1, threadsPerBlock)),
-                       [=](sycl::nd_item<3> item_ct1) {
-                         countModules(d_id_get_ct0, d_moduleStart_get_ct1, d_clus_get_ct2, n, item_ct1);
-                       });
+      cgh.parallel_for(
+          sycl::nd_range(sycl::range(1, 1, blocksPerGrid * threadsPerBlock), sycl::range(1, 1, threadsPerBlock)),
+          [=](sycl::nd_item<3> item) { countModules(d_id_get, d_moduleStart_get, d_clus_get, n, item); });
     });
 
     blocksPerGrid = MaxNumModules;  //nModules;
@@ -260,52 +258,50 @@ int main(void) {
     queue.memset(d_clusInModule.get(), 0, MaxNumModules * sizeof(uint32_t)).wait();
 
     queue.submit([&](sycl::handler &cgh) {
-      sycl::stream stream_ct1(64 * 1024, 80, cgh);
+      sycl::stream out(64 * 1024, 80, cgh);
 
-      //auto gMaxHit_ptr_ct1 = gMaxHit.get_ptr();
+      //auto gMaxHit_ptr = gMaxHit.get_ptr();
 
-      sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> msize_acc_ct1(cgh);
-      sycl::accessor<Hist, 0, sycl::access::mode::read_write, sycl::access::target::local> hist_acc_ct1(cgh);
-      sycl::accessor<typename Hist::Counter, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc_ct1(
-          sycl::range(32), cgh);
-      sycl::accessor<uint32_t, 0, sycl::access::mode::read_write, sycl::access::target::local> totGood_acc_ct1(cgh);
-      sycl::accessor<uint32_t, 0, sycl::access::mode::read_write, sycl::access::target::local> n40_acc_ct1(cgh);
-      sycl::accessor<uint32_t, 0, sycl::access::mode::read_write, sycl::access::target::local> n60_acc_ct1(cgh);
-      sycl::accessor<int, 0, sycl::access::mode::read_write, sycl::access::target::local> n0_acc_ct1(cgh);
-      sycl::accessor<unsigned int, 0, sycl::access::mode::read_write, sycl::access::target::local> foundClusters_acc_ct1(
-          cgh);
+      sycl::accessor<int, 0, sycl::access_mode::read_write, sycl::target::local> msize_acc(cgh);
+      sycl::accessor<Hist, 0, sycl::access_mode::read_write, sycl::target::local> hist_acc(cgh);
+      sycl::accessor<typename Hist::Counter, 1, sycl::access_mode::read_write, sycl::target::local> ws_acc(32, cgh);
+      sycl::accessor<uint32_t, 0, sycl::access_mode::read_write, sycl::target::local> totGood_acc(cgh);
+      sycl::accessor<uint32_t, 0, sycl::access_mode::read_write, sycl::target::local> n40_acc(cgh);
+      sycl::accessor<uint32_t, 0, sycl::access_mode::read_write, sycl::target::local> n60_acc(cgh);
+      sycl::accessor<int, 0, sycl::access_mode::read_write, sycl::target::local> n0_acc(cgh);
+      sycl::accessor<unsigned int, 0, sycl::access_mode::read_write, sycl::target::local> foundClusters_acc(cgh);
 
-      auto d_id_get_ct0 = d_id.get();
-      auto d_x_get_ct1 = d_x.get();
-      auto d_y_get_ct2 = d_y.get();
-      auto d_moduleStart_get_ct3 = d_moduleStart.get();
-      auto d_clusInModule_get_ct4 = d_clusInModule.get();
-      auto d_moduleId_get_ct5 = d_moduleId.get();
-      auto d_clus_get_ct6 = d_clus.get();
+      auto d_id_get = d_id.get();
+      auto d_x_get = d_x.get();
+      auto d_y_get = d_y.get();
+      auto d_moduleStart_get = d_moduleStart.get();
+      auto d_clusInModule_get = d_clusInModule.get();
+      auto d_moduleId_get = d_moduleId.get();
+      auto d_clus_get = d_clus.get();
 
-      cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, blocksPerGrid) * sycl::range(1, 1, threadsPerBlock),
-                                      sycl::range(1, 1, threadsPerBlock)),
-                       [=](sycl::nd_item<3> item_ct1) {
-                         findClus(d_id_get_ct0,
-                                  d_x_get_ct1,
-                                  d_y_get_ct2,
-                                  d_moduleStart_get_ct3,
-                                  d_clusInModule_get_ct4,
-                                  d_moduleId_get_ct5,
-                                  d_clus_get_ct6,
-                                  n,
-                                  item_ct1,
-                                  stream_ct1,
-                                  //gMaxHit_ptr_ct1,
-                                  msize_acc_ct1.get_pointer(),
-                                  hist_acc_ct1.get_pointer(),
-                                  ws_acc_ct1.get_pointer(),
-                                  totGood_acc_ct1.get_pointer(),
-                                  n40_acc_ct1.get_pointer(),
-                                  n60_acc_ct1.get_pointer(),
-                                  n0_acc_ct1.get_pointer(),
-                                  foundClusters_acc_ct1.get_pointer());
-                       });
+      cgh.parallel_for(
+          sycl::nd_range(sycl::range(1, 1, blocksPerGrid * threadsPerBlock), sycl::range(1, 1, threadsPerBlock)),
+          [=](sycl::nd_item<3> item) {
+            findClus(d_id_get,
+                     d_x_get,
+                     d_y_get,
+                     d_moduleStart_get,
+                     d_clusInModule_get,
+                     d_moduleId_get,
+                     d_clus_get,
+                     n,
+                     item,
+                     out,
+                     //gMaxHit_ptr,
+                     msize_acc.get_pointer(),
+                     hist_acc.get_pointer(),
+                     ws_acc.get_pointer(),
+                     totGood_acc.get_pointer(),
+                     n40_acc.get_pointer(),
+                     n60_acc.get_pointer(),
+                     n0_acc.get_pointer(),
+                     foundClusters_acc.get_pointer());
+          });
     });
     queue.wait_and_throw();
     queue.memcpy(&nModules, d_moduleStart.get(), sizeof(uint32_t)).wait();
@@ -324,41 +320,40 @@ int main(void) {
       std::cout << "ERROR!!!!! wrong number of cluster found" << std::endl;
 
     queue.submit([&](sycl::handler &cgh) {
-      sycl::stream stream_ct1(64 * 1024, 80, cgh);
+      sycl::stream out(64 * 1024, 80, cgh);
 
-      sycl::accessor<int32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> charge_acc_ct1(
-          sycl::range(1024 /*MaxNumClustersPerModules*/), cgh);
-      sycl::accessor<uint8_t, 1, sycl::access::mode::read_write, sycl::access::target::local> ok_acc_ct1(
-          sycl::range(1024 /*MaxNumClustersPerModules*/), cgh);
-      sycl::accessor<uint16_t, 1, sycl::access::mode::read_write, sycl::access::target::local> newclusId_acc_ct1(
-          sycl::range(1024 /*MaxNumClustersPerModules*/), cgh);
-      sycl::accessor<uint16_t, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc_ct1(
-          sycl::range(32), cgh);
+      sycl::accessor<int32_t, 1, sycl::access_mode::read_write, sycl::target::local> charge_acc(
+          1024 /*MaxNumClustersPerModules*/, cgh);
+      sycl::accessor<uint8_t, 1, sycl::access_mode::read_write, sycl::target::local> ok_acc(
+          1024 /*MaxNumClustersPerModules*/, cgh);
+      sycl::accessor<uint16_t, 1, sycl::access_mode::read_write, sycl::target::local> newclusId_acc(
+          1024 /*MaxNumClustersPerModules*/, cgh);
+      sycl::accessor<uint16_t, 1, sycl::access_mode::read_write, sycl::target::local> ws_acc(32, cgh);
 
-      auto d_id_get_ct0 = d_id.get();
-      auto d_adc_get_ct1 = d_adc.get();
-      auto d_moduleStart_get_ct2 = d_moduleStart.get();
-      auto d_clusInModule_get_ct3 = d_clusInModule.get();
-      auto d_moduleId_get_ct4 = d_moduleId.get();
-      auto d_clus_get_ct5 = d_clus.get();
+      auto d_id_get = d_id.get();
+      auto d_adc_get = d_adc.get();
+      auto d_moduleStart_get = d_moduleStart.get();
+      auto d_clusInModule_get = d_clusInModule.get();
+      auto d_moduleId_get = d_moduleId.get();
+      auto d_clus_get = d_clus.get();
 
-      cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, blocksPerGrid) * sycl::range(1, 1, threadsPerBlock),
-                                      sycl::range(1, 1, threadsPerBlock)),
-                       [=](sycl::nd_item<3> item_ct1) {
-                         clusterChargeCut(d_id_get_ct0,
-                                          d_adc_get_ct1,
-                                          d_moduleStart_get_ct2,
-                                          d_clusInModule_get_ct3,
-                                          d_moduleId_get_ct4,
-                                          d_clus_get_ct5,
-                                          n,
-                                          item_ct1,
-                                          stream_ct1,
-                                          charge_acc_ct1.get_pointer(),
-                                          ok_acc_ct1.get_pointer(),
-                                          newclusId_acc_ct1.get_pointer(),
-                                          ws_acc_ct1.get_pointer());
-                       });
+      cgh.parallel_for(
+          sycl::nd_range(sycl::range(1, 1, blocksPerGrid * threadsPerBlock), sycl::range(1, 1, threadsPerBlock)),
+          [=](sycl::nd_item<3> item) {
+            clusterChargeCut(d_id_get,
+                             d_adc_get,
+                             d_moduleStart_get,
+                             d_clusInModule_get,
+                             d_moduleId_get,
+                             d_clus_get,
+                             n,
+                             item,
+                             out,
+                             charge_acc.get_pointer(),
+                             ok_acc.get_pointer(),
+                             newclusId_acc.get_pointer(),
+                             ws_acc.get_pointer());
+          });
     });
 
     queue.wait_and_throw();

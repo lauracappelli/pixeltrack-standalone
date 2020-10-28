@@ -18,10 +18,6 @@
 namespace {
   std::atomic<int> allEvents = 0;
   std::atomic<int> goodEvents = 0;
-  std::atomic<int> sumVertexDifference = 0;
-
-  std::mutex sumTrackDifferenceMutex;
-  float sumTrackDifference = 0;
 }  // namespace
 
 class CountValidator : public edm::EDProducer {

@@ -22,8 +22,7 @@ namespace cms {
                          uint32_t const *__restrict__ offsets,
                          sycl::nd_item<3> item) {
       int first = item.get_local_range().get(2) * item.get_group(2) + item.get_local_id(2);
-      for (int i = first, nt = offsets[nh]; i < nt;
-           i += item.get_group_range(2) * item.get_local_range().get(2)) {
+      for (int i = first, nt = offsets[nh]; i < nt; i += item.get_group_range(2) * item.get_local_range().get(2)) {
         auto off = std::upper_bound(offsets, offsets + nh + 1, i);
         //assert((*off) > 0);
         int32_t ih = off - offsets - 1;
@@ -40,8 +39,7 @@ namespace cms {
                         uint32_t const *__restrict__ offsets,
                         sycl::nd_item<3> item) {
       int first = item.get_local_range().get(2) * item.get_group(2) + item.get_local_id(2);
-      for (int i = first, nt = offsets[nh]; i < nt;
-           i += item.get_group_range(2) * item.get_local_range().get(2)) {
+      for (int i = first, nt = offsets[nh]; i < nt; i += item.get_group_range(2) * item.get_local_range().get(2)) {
         auto off = std::upper_bound(offsets, offsets + nh + 1, i);
         //assert((*off) > 0);
         int32_t ih = off - offsets - 1;
@@ -67,24 +65,24 @@ namespace cms {
       auto nblocks = (Histo::totbins() + nthreads - 1) / nthreads;
       stream.submit([&](sycl::handler &cgh) {
         sycl::stream out(64 * 1024, 80, cgh);
-        sycl::accessor<uint32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> psum_acc(sycl::range(sizeof(int32_t) * nblocks), cgh);
-        sycl::accessor<uint32_t, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc(sycl::range(32), cgh);
-        sycl::accessor<bool, 0, sycl::access::mode::read_write, sycl::access::target::local> isLastBlockDone_acc(cgh);
+        sycl::accessor<uint32_t, 1, sycl::access_mode::read_write, sycl::target::local> psum_acc(
+            sizeof(int32_t) * nblocks, cgh);
+        sycl::accessor<uint32_t, 1, sycl::access_mode::read_write, sycl::target::local> ws_acc(32, cgh);
+        sycl::accessor<bool, 0, sycl::access_mode::read_write, sycl::target::local> isLastBlockDone_acc(cgh);
         auto Histo_totbins = Histo::totbins();
-        cgh.parallel_for(
-            sycl::nd_range(sycl::range(1, 1, nblocks * nthreads), sycl::range(1, 1, nthreads)),
-            [=](sycl::nd_item<3> item) {
-              multiBlockPrefixScan<uint32_t>(item,
-                                   poff,
-                                   poff,
-                                   Histo_totbins,
-                                   ppsws,
-                                   (uint32_t*) ws_acc.get_pointer(),
-                                   (bool*)isLastBlockDone_acc.get_pointer(),
-                                   (uint32_t*) psum_acc.get_pointer(),
-                                   out,
-                                   16);
-            });
+        cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, nblocks * nthreads), sycl::range(1, 1, nthreads)),
+                         [=](sycl::nd_item<3> item) {
+                           multiBlockPrefixScan<uint32_t>(item,
+                                                          poff,
+                                                          poff,
+                                                          Histo_totbins,
+                                                          ppsws,
+                                                          (uint32_t *)ws_acc.get_pointer(),
+                                                          (bool *)isLastBlockDone_acc.get_pointer(),
+                                                          (uint32_t *)psum_acc.get_pointer(),
+                                                          out,
+                                                          16);
+                         });
       });
     }
 
@@ -99,15 +97,13 @@ namespace cms {
       launchZero(h, stream);
       auto nblocks = (totSize + nthreads - 1) / nthreads;
       stream.submit([&](sycl::handler &cgh) {
-        cgh.parallel_for(
-            sycl::nd_range(sycl::range(1, 1, nblocks * nthreads), sycl::range(1, 1, nthreads)),
-            [=](sycl::nd_item<3> item) { countFromVector(h, nh, v, offsets, item); });
+        cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, nblocks * nthreads), sycl::range(1, 1, nthreads)),
+                         [=](sycl::nd_item<3> item) { countFromVector(h, nh, v, offsets, item); });
       });
       launchFinalize(h, stream);
       stream.submit([&](sycl::handler &cgh) {
-        cgh.parallel_for(
-            sycl::nd_range(sycl::range(1, 1, nblocks * nthreads), sycl::range(1, 1, nthreads)),
-            [=](sycl::nd_item<3> item) { fillFromVector(h, nh, v, offsets, item); });
+        cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, nblocks * nthreads), sycl::range(1, 1, nthreads)),
+                         [=](sycl::nd_item<3> item) { fillFromVector(h, nh, v, offsets, item); });
       });
     }
 
@@ -191,22 +187,17 @@ namespace cms {
       inline __attribute__((always_inline)) void add(CountersOnly const &co) {
         for (uint32_t i = 0; i < totbins(); ++i) {
           sycl::atomic<HistoContainer<unsigned int, 8, 8000, 32, unsigned short, 1>::Counter>(
-              sycl::global_ptr<HistoContainer<unsigned int, 8, 8000, 32, unsigned short, 1>::Counter>(
-                  off + i))
+              sycl::global_ptr<HistoContainer<unsigned int, 8, 8000, 32, unsigned short, 1>::Counter>(off + i))
               .fetch_add(co.off[i]);
         }
       }
 
       static inline __attribute__((always_inline)) uint32_t atomicIncrement(Counter &x) {
-        return sycl::atomic<HistoContainer::Counter>(
-                   sycl::global_ptr<HistoContainer::Counter>(&x))
-            .fetch_add(1);
+        return sycl::atomic<HistoContainer::Counter>(sycl::global_ptr<HistoContainer::Counter>(&x)).fetch_add(1);
       }
 
       static inline __attribute__((always_inline)) uint32_t atomicDecrement(Counter &x) {
-        return sycl::atomic<HistoContainer::Counter>(
-                   sycl::global_ptr<HistoContainer::Counter>(&x))
-            .fetch_sub(1);
+        return sycl::atomic<HistoContainer::Counter>(sycl::global_ptr<HistoContainer::Counter>(&x)).fetch_sub(1);
       }
 
       inline __attribute__((always_inline)) void countDirect(T b) {
@@ -235,8 +226,7 @@ namespace cms {
         off[apc.get().m] = apc.get().n;
       }
 
-      inline __attribute__((always_inline)) void bulkFinalizeFill(AtomicPairCounter const &apc,
-                                                                  sycl::nd_item<3> item) {
+      inline __attribute__((always_inline)) void bulkFinalizeFill(AtomicPairCounter const &apc, sycl::nd_item<3> item) {
         auto m = apc.get().m;
         auto n = apc.get().n;
         if (m >= nbins()) {  // overflow!

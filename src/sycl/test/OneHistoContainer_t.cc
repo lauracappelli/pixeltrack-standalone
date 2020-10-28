@@ -43,7 +43,7 @@ void mykernel(T const *__restrict__ v,
   //assert(N == hist->size());
   for (auto j = item.get_local_id(2); j < Hist::nbins(); j += item.get_local_range().get(2))
     //assert(hist->off[j] <= hist->off[j + 1]);
-  item.barrier();
+    item.barrier();
 
   if (item.get_local_id(2) < 32)
     ws[item.get_local_id(2)] = 0;  // used by prefix scan...
@@ -132,15 +132,13 @@ void go() {
     queue.submit([&](sycl::handler &cgh) {
       sycl::stream out(64 * 1024, 80, cgh);
 
-      sycl::accessor<Hist, 0, sycl::access::mode::read_write, sycl::access::target::local> hist_acc(cgh);
-      sycl::accessor<typename Hist::Counter, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc(
-          sycl::range(32), cgh);
+      sycl::accessor<Hist, 0, sycl::access_mode::read_write, sycl::target::local> hist_acc(cgh);
+      sycl::accessor<typename Hist::Counter, 1, sycl::access_mode::read_write, sycl::target::local> ws_acc(32, cgh);
 
-      auto v_d_get_ct0 = v_d.get();
+      auto v_d_get = v_d.get();
 
       cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 256), sycl::range(1, 1, 256)), [=](sycl::nd_item<3> item) {
-        mykernel<T, NBINS, S, DELTA>(
-            v_d_get_ct0, N, item, out, hist_acc.get_pointer(), ws_acc.get_pointer());
+        mykernel<T, NBINS, S, DELTA>(v_d_get, N, item, out, hist_acc.get_pointer(), ws_acc.get_pointer());
       });
     });
   }

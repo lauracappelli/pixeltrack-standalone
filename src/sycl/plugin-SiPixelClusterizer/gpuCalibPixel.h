@@ -29,20 +29,20 @@ namespace gpuCalibPixel {
                   uint32_t* __restrict__ moduleStart,        // just to zero first
                   uint32_t* __restrict__ nClustersInModule,  // just to zero them
                   uint32_t* __restrict__ clusModuleStart,
-                  sycl::nd_item<3> item_ct1,
-                  sycl::stream stream_ct1  // just to zero first
+                  sycl::nd_item<3> item,
+                  sycl::stream out  // just to zero first
   ) {
-    int first = item_ct1.get_local_range().get(2) * item_ct1.get_group(2) + item_ct1.get_local_id(2);
+    int first = item.get_local_range().get(2) * item.get_group(2) + item.get_local_id(2);
 
     // zero for next kernels...
     if (0 == first)
       clusModuleStart[0] = moduleStart[0] = 0;
     for (unsigned int i = first; i < gpuClustering::MaxNumModules;
-         i += item_ct1.get_group_range(2) * item_ct1.get_local_range().get(2)) {
+         i += item.get_group_range(2) * item.get_local_range().get(2)) {
       nClustersInModule[i] = 0;
     }
 
-    for (int i = first; i < numElements; i += item_ct1.get_group_range(2) * item_ct1.get_local_range().get(2)) {
+    for (int i = first; i < numElements; i += item.get_group_range(2) * item.get_local_range().get(2)) {
       if (InvId == id[i])
         continue;
 
@@ -63,7 +63,7 @@ namespace gpuCalibPixel {
         /*
         DPCT1015:182: Output needs adjustment.
         */
-        stream_ct1 << "bad pixel at %d in %d\n";
+        out << "bad pixel at %d in %d\n";
       } else {
         float vcal = adc[i] * gain - pedestal * gain;
         adc[i] = sycl::max(100, int(vcal * conversionFactor + offset));

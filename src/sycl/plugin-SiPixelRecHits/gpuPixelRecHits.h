@@ -23,8 +23,8 @@ namespace gpuPixelRecHits {
                int numElements,
                SiPixelClustersCUDA::DeviceConstView const* __restrict__ pclusters,
                TrackingRecHit2DSOAView* phits,
-               sycl::nd_item<3> item_ct1,
-               sycl::stream stream_ct1,
+               sycl::nd_item<3> item,
+               sycl::stream out,
                ClusParams* clusParams) {
     // FIXME
     // the compiler seems NOT to optimize loads from views (even in a simple test case)
@@ -40,12 +40,12 @@ namespace gpuPixelRecHits {
     auto const& clusters = *pclusters;
 
     // copy average geometry corrected by beamspot . FIXME (move it somewhere else???)
-    if (0 == item_ct1.get_group(2)) {
+    if (0 == item.get_group(2)) {
       auto& agc = hits.averageGeometry();
       auto const& ag = cpeParams->averageGeometry();
-      for (int il = item_ct1.get_local_id(2), nl = TrackingRecHit2DSOAView::AverageGeometry::numberOfLaddersInBarrel;
+      for (int il = item.get_local_id(2), nl = TrackingRecHit2DSOAView::AverageGeometry::numberOfLaddersInBarrel;
            il < nl;
-           il += item_ct1.get_local_range().get(2)) {
+           il += item.get_local_range().get(2)) {
         agc.ladderZ[il] = ag.ladderZ[il] - bs->z;
         agc.ladderX[il] = ag.ladderX[il] - bs->x;
         agc.ladderY[il] = ag.ladderY[il] - bs->y;
@@ -53,7 +53,7 @@ namespace gpuPixelRecHits {
         agc.ladderMinZ[il] = ag.ladderMinZ[il] - bs->z;
         agc.ladderMaxZ[il] = ag.ladderMaxZ[il] - bs->z;
       }
-      if (0 == item_ct1.get_local_id(2)) {
+      if (0 == item.get_local_id(2)) {
         agc.endCapZ[0] = ag.endCapZ[0] - bs->z;
         agc.endCapZ[1] = ag.endCapZ[1] - bs->z;
         //printf("endcapZ %f %f\n",agc.endCapZ[0],agc.endCapZ[1]);
@@ -65,15 +65,15 @@ namespace gpuPixelRecHits {
     constexpr int32_t MaxHitsInIter = pixelCPEforGPU::MaxHitsInIter;
 
     // as usual one block per module
-    auto me = clusters.moduleId(item_ct1.get_group(2));
+    auto me = clusters.moduleId(item.get_group(2));
     int nclus = clusters.clusInModule(me);
 
     if (0 == nclus)
       return;
 
 #ifdef GPU_DEBUG
-    if (item_ct1.get_local_id(2) == 0) {
-      auto k = clusters.moduleStart(1 + item_ct1.get_group(2));
+    if (item.get_local_id(2) == 0) {
+      auto k = clusters.moduleStart(1 + item.get_group(2));
       while (digis.moduleInd(k) == InvId)
         ++k;
       //assert(digis.moduleInd(k) == me);
@@ -82,12 +82,13 @@ namespace gpuPixelRecHits {
 
 #ifdef GPU_DEBUG
     if (me % 100 == 1)
-      if (item_ct1.get_local_id(2) == 0)
-        stream_ct1 << "hitbuilder: " << nclus << " clusters in module " << me << ". will write at " << clusters.clusModuleStart(me) << sycl::endl;
+      if (item.get_local_id(2) == 0)
+        out << "hitbuilder: " << nclus << " clusters in module " << me << ". will write at "
+               << clusters.clusModuleStart(me) << sycl::endl;
 #endif
 
     for (int startClus = 0, endClus = nclus; startClus < endClus; startClus += MaxHitsInIter) {
-      auto first = clusters.moduleStart(1 + item_ct1.get_group(2));
+      auto first = clusters.moduleStart(1 + item.get_group(2));
 
       int nClusInIter = sycl::min((const int)MaxHitsInIter, endClus - startClus);
       int lastClus = startClus + nClusInIter;
@@ -98,7 +99,7 @@ namespace gpuPixelRecHits {
       //assert(nclus > MaxHitsInIter || (0 == startClus && nClusInIter == nclus && lastClus == nclus));
 
       // init
-      for (int ic = item_ct1.get_local_id(2); ic < nClusInIter; ic += item_ct1.get_local_range().get(2)) {
+      for (int ic = item.get_local_id(2); ic < nClusInIter; ic += item.get_local_range().get(2)) {
         clusParams->minRow[ic] = std::numeric_limits<uint32_t>::max();
         clusParams->maxRow[ic] = 0;
         clusParams->minCol[ic] = std::numeric_limits<uint32_t>::max();
@@ -110,13 +111,13 @@ namespace gpuPixelRecHits {
         clusParams->Q_l_Y[ic] = 0;
       }
 
-      first += item_ct1.get_local_id(2);
+      first += item.get_local_id(2);
 
-      item_ct1.barrier();
+      item.barrier();
 
       // one thead per "digi"
 
-      for (int i = first; i < numElements; i += item_ct1.get_local_range().get(2)) {
+      for (int i = first; i < numElements; i += item.get_local_range().get(2)) {
         auto id = digis.moduleInd(i);
         if (id == InvId)
           continue;  // not valid
@@ -136,9 +137,9 @@ namespace gpuPixelRecHits {
         sycl::atomic<uint32_t>(sycl::global_ptr<uint32_t>(&clusParams->maxCol[cl])).fetch_max(y);
       }
 
-      item_ct1.barrier();
+      item.barrier();
 
-      for (int i = first; i < numElements; i += item_ct1.get_local_range().get(2)) {
+      for (int i = first; i < numElements; i += item.get_local_range().get(2)) {
         auto id = digis.moduleInd(i);
         if (id == InvId)
           continue;  // not valid
@@ -164,13 +165,13 @@ namespace gpuPixelRecHits {
           sycl::atomic<int32_t>(sycl::global_ptr<int32_t>(&clusParams->Q_l_Y[cl])).fetch_add(ch);
       }
 
-      item_ct1.barrier();
+      item.barrier();
 
       // next one cluster per thread...
 
       first = clusters.clusModuleStart(me) + startClus;
 
-      for (int ic = item_ct1.get_local_id(2); ic < nClusInIter; ic += item_ct1.get_local_range().get(2)) {
+      for (int ic = item.get_local_id(2); ic < nClusInIter; ic += item.get_local_range().get(2)) {
         auto h = first + ic;  // output index in global memory
 
         // this cannot happen anymore
@@ -214,7 +215,7 @@ namespace gpuPixelRecHits {
         hits.rGlobal(h) = sycl::sqrt(xg * xg + yg * yg);
         hits.iphi(h) = unsafe_atan2s<7>(yg, xg);
       }
-      item_ct1.barrier();
+      item.barrier();
     }  // end loop on batches
   }
 

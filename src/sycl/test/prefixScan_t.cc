@@ -8,8 +8,7 @@
 using namespace cms::sycltools;
 
 template <typename T>
-void testPrefixScan(
-    sycl::nd_item<3> item, uint32_t size, sycl::stream out, T *ws, T *c, T *co, int subgroupSize) {
+void testPrefixScan(sycl::nd_item<3> item, uint32_t size, sycl::stream out, T *ws, T *c, T *co, int subgroupSize) {
   auto first = item.get_local_id(2);
   for (auto i = first; i < size; i += item.get_local_range().get(2))
     c[i] = 1;
@@ -53,8 +52,7 @@ void testPrefixScan(
 }
 
 template <typename T>
-void testWarpPrefixScan(
-    sycl::nd_item<3> item, uint32_t size, sycl::stream out, T *c, T *co, int subgroupSize) {
+void testWarpPrefixScan(sycl::nd_item<3> item, uint32_t size, sycl::stream out, T *c, T *co, int subgroupSize) {
   //assert(size <= 32);
   if (size > 32) {
     out << "failed (testWarpPrefixScan): size > 32 " << sycl::endl;
@@ -91,7 +89,7 @@ void testWarpPrefixScan(
       return;
     }
     //assert(c[i] == i + 1);
-    if (c[i] != (T) i + 1) {
+    if (c[i] != (T)i + 1) {
       out << "failed (testWarpPrefixScan): c[i] != i + 1 " << sycl::endl;
       return;
     }
@@ -157,8 +155,8 @@ int main() try {
   // std::cout << "warp 32" << std::endl;
   queue.submit([&](sycl::handler &cgh) {
     sycl::stream out(64 * 1024, 80, cgh);
-    sycl::accessor<int, 1, sycl::access::mode::read_write, sycl::access::target::local> c_acc(sycl::range(1024), cgh);
-    sycl::accessor<int, 1, sycl::access::mode::read_write, sycl::access::target::local> co_acc(sycl::range(1024), cgh);
+    sycl::accessor<int, 1, sycl::access_mode::read_write, sycl::target::local> c_acc(1024, cgh);
+    sycl::accessor<int, 1, sycl::access_mode::read_write, sycl::target::local> co_acc(1024, cgh);
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, subgroupSize), sycl::range(1, 1, subgroupSize)),
@@ -171,8 +169,8 @@ int main() try {
   // std::cout << "warp 16" << std::endl;
   queue.submit([&](sycl::handler &cgh) {
     sycl::stream out(64 * 1024, 80, cgh);
-    sycl::accessor<int, 1, sycl::access::mode::read_write, sycl::access::target::local> c_acc(sycl::range(1024), cgh);
-    sycl::accessor<int, 1, sycl::access::mode::read_write, sycl::access::target::local> co_acc(sycl::range(1024), cgh);
+    sycl::accessor<int, 1, sycl::access_mode::read_write, sycl::target::local> c_acc(1024, cgh);
+    sycl::accessor<int, 1, sycl::access_mode::read_write, sycl::target::local> co_acc(1024, cgh);
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, subgroupSize), sycl::range(1, 1, subgroupSize)),
@@ -185,8 +183,8 @@ int main() try {
   // std::cout << "warp 5" << std::endl;
   queue.submit([&](sycl::handler &cgh) {
     sycl::stream out(64 * 1024, 80, cgh);
-    sycl::accessor<int, 1, sycl::access::mode::read_write, sycl::access::target::local> c_acc(sycl::range(1024), cgh);
-    sycl::accessor<int, 1, sycl::access::mode::read_write, sycl::access::target::local> co_acc(sycl::range(1024), cgh);
+    sycl::accessor<int, 1, sycl::access_mode::read_write, sycl::target::local> c_acc(1024, cgh);
+    sycl::accessor<int, 1, sycl::access_mode::read_write, sycl::target::local> co_acc(1024, cgh);
 
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, subgroupSize), sycl::range(1, 1, subgroupSize)),
@@ -202,12 +200,9 @@ int main() try {
       queue.submit([&](sycl::handler &cgh) {
         sycl::stream out(64 * 1024, 80, cgh);
 
-        sycl::accessor<uint16_t, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc(sycl::range(32),
-                                                                                                        cgh);
-        sycl::accessor<uint16_t, 1, sycl::access::mode::read_write, sycl::access::target::local> c_acc(
-            sycl::range(1024), cgh);
-        sycl::accessor<uint16_t, 1, sycl::access::mode::read_write, sycl::access::target::local> co_acc(
-            sycl::range(1024), cgh);
+        sycl::accessor<uint16_t, 1, sycl::access_mode::read_write, sycl::target::local> ws_acc(32, cgh);
+        sycl::accessor<uint16_t, 1, sycl::access_mode::read_write, sycl::target::local> c_acc(1024, cgh);
+        sycl::accessor<uint16_t, 1, sycl::access_mode::read_write, sycl::target::local> co_acc(1024, cgh);
 
         cgh.parallel_for(
             sycl::nd_range(sycl::range(1, 1, bs), sycl::range(1, 1, bs)),
@@ -221,12 +216,9 @@ int main() try {
       queue.submit([&](sycl::handler &cgh) {
         sycl::stream out(64 * 1024, 80, cgh);
 
-        sycl::accessor<float, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc(sycl::range(32),
-                                                                                                     cgh);
-        sycl::accessor<float, 1, sycl::access::mode::read_write, sycl::access::target::local> c_acc(sycl::range(1024),
-                                                                                                    cgh);
-        sycl::accessor<float, 1, sycl::access::mode::read_write, sycl::access::target::local> co_acc(sycl::range(1024),
-                                                                                                     cgh);
+        sycl::accessor<float, 1, sycl::access_mode::read_write, sycl::target::local> ws_acc(32, cgh);
+        sycl::accessor<float, 1, sycl::access_mode::read_write, sycl::target::local> c_acc(1024, cgh);
+        sycl::accessor<float, 1, sycl::access_mode::read_write, sycl::target::local> co_acc(1024, cgh);
 
         cgh.parallel_for(
             sycl::nd_range(sycl::range(1, 1, bs), sycl::range(1, 1, bs)),
@@ -276,11 +268,9 @@ int main() try {
     queue.submit([&](sycl::handler &cgh) {
       sycl::stream out(64 * 1024, 80, cgh);
 
-      sycl::accessor<unsigned int, 1, sycl::access::mode::read_write, sycl::access::target::local> psum_acc(
-          sycl::range(4 * nblocks), cgh);
-      sycl::accessor<unsigned int, 1, sycl::access::mode::read_write, sycl::access::target::local> ws_acc(
-          sycl::range(32), cgh);
-      sycl::accessor<bool, 0, sycl::access::mode::read_write, sycl::access::target::local> isLastBlockDone_acc(cgh);
+      sycl::accessor<unsigned int, 1, sycl::access_mode::read_write, sycl::target::local> psum_acc(4 * nblocks, cgh);
+      sycl::accessor<unsigned int, 1, sycl::access_mode::read_write, sycl::target::local> ws_acc(32, cgh);
+      sycl::accessor<bool, 0, sycl::access_mode::read_write, sycl::target::local> isLastBlockDone_acc(cgh);
 
       cgh.parallel_for(
           sycl::nd_range(sycl::range(1, 1, nblocks * nthreads), sycl::range(1, 1, nthreads)),

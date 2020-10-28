@@ -1,31 +1,20 @@
 #ifndef HeterogeneousCore_CUDAUtilities_CUDAHostAllocator_h
 #define HeterogeneousCore_CUDAUtilities_CUDAHostAllocator_h
 
-#include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 #include <memory>
 #include <new>
 
-class cuda_bad_alloc : public std::bad_alloc {
-public:
-  cuda_bad_alloc(int error) noexcept : error_(error) {}
+#include <CL/sycl.hpp>
+#include <dpct/dpct.hpp>
 
-  const char* what() const noexcept override {
-    return "cudaGetErrorString not supported" /*cudaGetErrorString(error_)*/;
-  }
-
-private:
-  int error_;
-};
-
-template <typename T, unsigned int FLAGS = 0>
+template <typename T>
 class CUDAHostAllocator {
 public:
   using value_type = T;
 
   template <typename U>
   struct rebind {
-    using other = CUDAHostAllocator<U, FLAGS>;
+    using other = CUDAHostAllocator<U>;
   };
 
   T* allocate(std::size_t n) const __attribute__((warn_unused_result)) __attribute__((malloc))
