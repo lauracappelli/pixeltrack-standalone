@@ -55,9 +55,7 @@ namespace KOKKOS_NAMESPACE {
       clusterTracksByDensityHost(vdata, vws, minT, eps, errmax, chi2max, execSpace, teamPolicy);
 
       Kokkos::parallel_for(
-          "vertexFinderOneKernel",
-          teamPolicy,
-          KOKKOS_LAMBDA(Kokkos::TeamPolicy<KokkosExecSpace>::member_type const& teamMember) {
+          teamPolicy, KOKKOS_LAMBDA(Kokkos::TeamPolicy<KokkosExecSpace>::member_type const& teamMember) {
             // 4 bytes of shared memory required
             fitVertices(vdata, vws, 50., teamMember);
             teamMember.team_barrier();
@@ -82,9 +80,7 @@ namespace KOKKOS_NAMESPACE {
                              Kokkos::TeamPolicy<KokkosExecSpace> const& teamPolicy) {
       clusterTracksByDensityHost(vdata, vws, minT, eps, errmax, chi2max, execSpace, teamPolicy);
       Kokkos::parallel_for(
-          "fitVertices_vertexFinderKernel1",
-          teamPolicy,
-          KOKKOS_LAMBDA(Kokkos::TeamPolicy<KokkosExecSpace>::member_type const& teamMember) {
+          teamPolicy, KOKKOS_LAMBDA(Kokkos::TeamPolicy<KokkosExecSpace>::member_type const& teamMember) {
             // 4 bytes of shared memory required
             fitVertices(vdata, vws, 50., teamMember);
           });
@@ -96,9 +92,7 @@ namespace KOKKOS_NAMESPACE {
                              KokkosExecSpace const& execSpace,
                              Kokkos::TeamPolicy<KokkosExecSpace> const& teamPolicy) {
       Kokkos::parallel_for(
-          "fitVertices_vertexFinderKernel2",
-          teamPolicy,
-          KOKKOS_LAMBDA(Kokkos::TeamPolicy<KokkosExecSpace>::member_type const& teamMember) {
+          teamPolicy, KOKKOS_LAMBDA(Kokkos::TeamPolicy<KokkosExecSpace>::member_type const& teamMember) {
             // 4 bytes of shared memory required
             fitVertices(vdata, vws, 5000., teamMember);
           });
@@ -112,9 +106,9 @@ namespace KOKKOS_NAMESPACE {
         float ptMin,
         KokkosExecSpace const& execSpace) const {
       // std::cout << "producing Vertices on GPU" << std::endl;
-      Kokkos::View<ZVertexSoA, KokkosExecSpace> vertices_d(Kokkos::ViewAllocateWithoutInitializing("vertices"));
+      Kokkos::View<ZVertexSoA, KokkosExecSpace> vertices_d("vertices");
       auto vertices_h = Kokkos::create_mirror_view(vertices_d);
-      Kokkos::View<WorkSpace, KokkosExecSpace> workspace_d(Kokkos::ViewAllocateWithoutInitializing("workspace"));
+      Kokkos::View<WorkSpace, KokkosExecSpace> workspace_d("workspace");
 
       using TeamPolicy = Kokkos::TeamPolicy<KokkosExecSpace>;
       using MemberType = Kokkos::TeamPolicy<KokkosExecSpace>::member_type;
@@ -149,7 +143,7 @@ namespace KOKKOS_NAMESPACE {
         vertexFinderKernel1(vertices_d, workspace_d, minT, eps, errmax, chi2max, execSpace, policy);
         // one block per vertex...
         Kokkos::parallel_for(
-            "splitVertices" TeamPolicy(execSpace, 1024, 128).set_sctratch_size(8192 * 4),
+            TeamPolicy(execSpace, 1024, 128).set_sctratch_size(8192 * 4),
             KOKKOS_LAMBDA(MemberType const& teamMember) { splitVertices(vertices_d, workspace_d, 9.f, teamMember); });
         vertexFinderKernel2(vertices_d, workspace_d, vertices_h, execSpace, policy);
 #endif
@@ -162,13 +156,12 @@ namespace KOKKOS_NAMESPACE {
           clusterTracksIterativeHost(vertices_d, workspace_d, minT, eps, errmax, chi2max, execSpace, policy);
         }
         Kokkos::parallel_for(
-            "fitVertices", policy, KOKKOS_LAMBDA(Kokkos::TeamPolicy<KokkosExecSpace>::member_type const& teamMember) {
+            policy, KOKKOS_LAMBDA(Kokkos::TeamPolicy<KokkosExecSpace>::member_type const& teamMember) {
               // 4 bytes of shared memory required
               fitVertices(vertices_d, workspace_d, 50., teamMember);
             });
         // one block per vertex...
         Kokkos::parallel_for(
-            "splitVertices",
 #ifdef KOKKOS_BACKEND_SERIAL
             TeamPolicy(execSpace, 1024, 1).set_scratch_size(0, Kokkos::PerTeam(8192 * 4)),
 #else
@@ -176,7 +169,7 @@ namespace KOKKOS_NAMESPACE {
 #endif
             KOKKOS_LAMBDA(MemberType const& teamMember) { splitVertices(vertices_d, workspace_d, 9.f, teamMember); });
         Kokkos::parallel_for(
-            "fitVertices", policy, KOKKOS_LAMBDA(Kokkos::TeamPolicy<KokkosExecSpace>::member_type const& teamMember) {
+            policy, KOKKOS_LAMBDA(Kokkos::TeamPolicy<KokkosExecSpace>::member_type const& teamMember) {
               // 4 bytes of shared memory required
               fitVertices(vertices_d, workspace_d, 5000., teamMember);
             });

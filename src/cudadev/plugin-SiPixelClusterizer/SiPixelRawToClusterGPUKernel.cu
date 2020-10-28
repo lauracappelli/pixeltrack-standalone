@@ -21,6 +21,9 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+// cub includes
+#include <cub/cub.cuh>
+
 // CMSSW includes
 #include "CUDADataFormats/gpuClusteringConstants.h"
 #include "CUDACore/cudaCheck.h"

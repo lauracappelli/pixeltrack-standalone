@@ -24,14 +24,12 @@ namespace KOKKOS_NAMESPACE {
     for (uint32_t offset = 0; offset < maxNumberOfTuples; offset += maxNumberOfConcurrentFits_) {
       // triplets
       Kokkos::parallel_for(
-          "kernelFastFit_3",
           Kokkos::RangePolicy<KokkosExecSpace>(execSpace, 0, Rfit::maxNumberOfConcurrentFits()),
           KOKKOS_LAMBDA(size_t i) {
             kernelFastFit<3>(tuples, tupleMultiplicity, 3, hv, hitsGPU, hits_geGPU, fast_fit_resultsGPU, offset, i);
           });
 
       Kokkos::parallel_for(
-          "kernelCircleFit_3",
           Kokkos::RangePolicy<KokkosExecSpace>(execSpace, 0, Rfit::maxNumberOfConcurrentFits()),
           KOKKOS_LAMBDA(size_t i) {
             kernelCircleFit<3>(tupleMultiplicity,
@@ -45,7 +43,6 @@ namespace KOKKOS_NAMESPACE {
                                i);
           });
       Kokkos::parallel_for(
-          "kernelLineFit_3",
           Kokkos::RangePolicy<KokkosExecSpace>(execSpace, 0, Rfit::maxNumberOfConcurrentFits()),
           KOKKOS_LAMBDA(size_t i) {
             kernelLineFit<3>(tupleMultiplicity,
@@ -62,14 +59,12 @@ namespace KOKKOS_NAMESPACE {
 
       // quads
       Kokkos::parallel_for(
-          "kernelFastFit_4",
           Kokkos::RangePolicy<KokkosExecSpace>(execSpace, 0, Rfit::maxNumberOfConcurrentFits()),
           KOKKOS_LAMBDA(size_t i) {
             kernelFastFit<4>(tuples, tupleMultiplicity, 4, hv, hitsGPU, hits_geGPU, fast_fit_resultsGPU, offset, i);
           });
 
       Kokkos::parallel_for(
-          "kernelCircleFit_4",
           Kokkos::RangePolicy<KokkosExecSpace>(execSpace, 0, Rfit::maxNumberOfConcurrentFits()),
           KOKKOS_LAMBDA(size_t i) {
             kernelCircleFit<4>(tupleMultiplicity,
@@ -83,7 +78,6 @@ namespace KOKKOS_NAMESPACE {
                                i);
           });
       Kokkos::parallel_for(
-          "kernelLineFit_4",
           Kokkos::RangePolicy<KokkosExecSpace>(execSpace, 0, Rfit::maxNumberOfConcurrentFits()),
           KOKKOS_LAMBDA(size_t i) {
             kernelLineFit<4>(tupleMultiplicity,
@@ -101,14 +95,12 @@ namespace KOKKOS_NAMESPACE {
       if (fit5as4_) {
         // penta
         Kokkos::parallel_for(
-            "kernelFastFit_4",
             Kokkos::RangePolicy<KokkosExecSpace>(execSpace, 0, Rfit::maxNumberOfConcurrentFits()),
             KOKKOS_LAMBDA(size_t i) {
               kernelFastFit<4>(tuples, tupleMultiplicity, 5, hv, hitsGPU, hits_geGPU, fast_fit_resultsGPU, offset, i);
             });
 
         Kokkos::parallel_for(
-            "kernelCircleFit_4",
             Kokkos::RangePolicy<KokkosExecSpace>(execSpace, 0, Rfit::maxNumberOfConcurrentFits()),
             KOKKOS_LAMBDA(size_t i) {
               kernelCircleFit<4>(tupleMultiplicity,
@@ -122,7 +114,6 @@ namespace KOKKOS_NAMESPACE {
                                  i);
             });
         Kokkos::parallel_for(
-            "kernelLineFit_4",
             Kokkos::RangePolicy<KokkosExecSpace>(execSpace, 0, Rfit::maxNumberOfConcurrentFits()),
             KOKKOS_LAMBDA(size_t i) {
               kernelLineFit<4>(tupleMultiplicity,
@@ -138,14 +129,12 @@ namespace KOKKOS_NAMESPACE {
             });
       } else {
         Kokkos::parallel_for(
-            "kernelFastFit_5",
             Kokkos::RangePolicy<KokkosExecSpace>(execSpace, 0, Rfit::maxNumberOfConcurrentFits()),
             KOKKOS_LAMBDA(size_t i) {
               kernelFastFit<5>(tuples, tupleMultiplicity, 5, hv, hitsGPU, hits_geGPU, fast_fit_resultsGPU, offset, i);
             });
 
         Kokkos::parallel_for(
-            "kernelCircleFit_5",
             Kokkos::RangePolicy<KokkosExecSpace>(execSpace, 0, Rfit::maxNumberOfConcurrentFits()),
             KOKKOS_LAMBDA(size_t i) {
               kernelCircleFit<5>(tupleMultiplicity,
@@ -159,7 +148,6 @@ namespace KOKKOS_NAMESPACE {
                                  i);
             });
         Kokkos::parallel_for(
-            "kernelLineFit_5",
             Kokkos::RangePolicy<KokkosExecSpace>(execSpace, 0, Rfit::maxNumberOfConcurrentFits()),
             KOKKOS_LAMBDA(size_t i) {
               kernelLineFit<5>(tupleMultiplicity,
