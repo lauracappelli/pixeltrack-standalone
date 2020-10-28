@@ -131,8 +131,8 @@ export NVCC_WRAPPER_DEFAULT_COMPILER := $(CXX)
 # Intel oneAPI
 ONEAPI_BASE := /opt/intel/oneapi
 ONEAPI_ENV  := $(ONEAPI_BASE)/setvars.sh
-DPCT_BASE   := $(ONEAPI_BASE)/dpcpp-ct/latest
-SYCL_BASE   := $(ONEAPI_BASE)/compiler/latest/linux
+DPCT_BASE   := $(ONEAPI_BASE)/dpcpp-ct/2021.1-beta10
+SYCL_BASE   := $(ONEAPI_BASE)/compiler/2021.1-beta10/linux
 SYCL_UNSUPPORTED_CXXFLAGS := --param vect-max-version-for-alias-checks=50 -Wno-non-template-friend -Werror=format-contains-nul -Werror=return-local-addr -Werror=unused-but-set-variable
 
 # to use a different toolchain

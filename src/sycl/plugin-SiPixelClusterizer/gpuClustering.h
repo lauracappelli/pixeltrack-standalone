@@ -149,12 +149,8 @@ namespace gpuClustering {
       hist->fill(y[i], i - firstPixel);
     }
 
-#ifdef DPCPP_COMPATIBILITY_TEMP
     // assume that we can cover the whole module with up to 16 blockDim.x-wide iterations
     constexpr int maxiter = 16;
-#else
-    auto maxiter = hist.size();
-#endif
     // allocate space for duplicate pixels: a pixel can appear more than once with different charge in the same event
     constexpr int maxNeighbours = 10;
     //assert((hist->size() / item.get_local_range().get(2)) <= maxiter);
@@ -217,7 +213,7 @@ namespace gpuClustering {
     // pixel in the cluster ( clus[i] == i ).
     bool more = true;
     int nloops = 0;
-    while ((item.barrier(), sycl::intel::any_of(item.get_group(), more))) {
+    while ((item.barrier(), sycl::ONEAPI::any_of(item.get_group(), more))) {
       if (1 == nloops % 2) {
         for (auto j = item.get_local_id(2), k = 0UL; j < hist->size(); j += item.get_local_range().get(2), ++k) {
           auto p = hist->begin() + j;
