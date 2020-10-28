@@ -236,7 +236,8 @@ int main(void) {
     queue.memcpy(d_y.get(), h_y.get(), size16).wait();
     queue.memcpy(d_adc.get(), h_adc.get(), size16).wait();
     // Launch SYCL Kernels
-    int threadsPerBlock = (kkk == 5) ? 512 : ((kkk == 3) ? 128 : 256);
+    int max_work_group_size = queue.get_device().get_info<sycl::info::device::max_work_group_size>();
+    int threadsPerBlock = std::min(((kkk == 5) ? 512 : ((kkk == 3) ? 128 : 256)), max_work_group_size);
     int blocksPerGrid = (numElements + threadsPerBlock - 1) / threadsPerBlock;
     std::cout << "SYCL countModules kernel launch with " << blocksPerGrid << " blocks of " << threadsPerBlock
               << " threads\n";

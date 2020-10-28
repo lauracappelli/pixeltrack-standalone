@@ -21,7 +21,7 @@ namespace cms {
                          T const *__restrict__ v,
                          uint32_t const *__restrict__ offsets,
                          sycl::nd_item<3> item) {
-      int first = item.get_local_range().get(2) * item.get_group(2) + item.get_local_id(2);
+      int first = item.get_global_id().get(2);
       for (int i = first, nt = offsets[nh]; i < nt; i += item.get_group_range(2) * item.get_local_range().get(2)) {
         auto off = std::upper_bound(offsets, offsets + nh + 1, i);
         //assert((*off) > 0);
@@ -38,7 +38,7 @@ namespace cms {
                         T const *__restrict__ v,
                         uint32_t const *__restrict__ offsets,
                         sycl::nd_item<3> item) {
-      int first = item.get_local_range().get(2) * item.get_group(2) + item.get_local_id(2);
+      int first = item.get_global_id().get(2);
       for (int i = first, nt = offsets[nh]; i < nt; i += item.get_group_range(2) * item.get_local_range().get(2)) {
         auto off = std::upper_bound(offsets, offsets + nh + 1, i);
         //assert((*off) > 0);
@@ -61,7 +61,8 @@ namespace cms {
     inline __attribute__((always_inline)) void launchFinalize(Histo *__restrict__ h, sycl::queue stream) {
       uint32_t *poff = (uint32_t *)((char *)(h) + offsetof(Histo, off));
       int32_t *ppsws = (int32_t *)((char *)(h) + offsetof(Histo, psws));
-      auto nthreads = 1024;
+      int max_work_group_size = stream.get_device().get_info<sycl::info::device::max_work_group_size>();
+      auto nthreads = std::min(1024, max_work_group_size);
       auto nblocks = (Histo::totbins() + nthreads - 1) / nthreads;
       stream.submit([&](sycl::handler &cgh) {
         sycl::stream out(64 * 1024, 80, cgh);
@@ -95,6 +96,8 @@ namespace cms {
                                                                   int nthreads,
                                                                   sycl::queue stream) {
       launchZero(h, stream);
+      int max_work_group_size = stream.get_device().get_info<sycl::info::device::max_work_group_size>();
+      nthreads = std::min(nthreads, max_work_group_size);
       auto nblocks = (totSize + nthreads - 1) / nthreads;
       stream.submit([&](sycl::handler &cgh) {
         cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, nblocks * nthreads), sycl::range(1, 1, nthreads)),
@@ -233,7 +236,7 @@ namespace cms {
           off[nbins()] = uint32_t(off[nbins() - 1]);
           return;
         }
-        auto first = m + item.get_local_range().get(2) * item.get_group(2) + item.get_local_id(2);
+        auto first = m + item.get_global_id().get(2);
         for (auto i = first; i < totbins(); i += item.get_group_range(2) * item.get_local_range().get(2)) {
           off[i] = n;
         }

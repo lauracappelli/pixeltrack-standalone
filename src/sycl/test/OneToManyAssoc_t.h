@@ -154,7 +154,8 @@ int main() {
 
   cms::sycltools::launchZero(a_d.get(), queue);
 
-  auto nThreads = 256;
+  int max_work_group_size = queue.get_device().get_info<sycl::info::device::max_work_group_size>();
+  auto nThreads = std::min(256, max_work_group_size);
   auto nBlocks = (4 * N + nThreads - 1) / nThreads;
 
   queue.submit([&](sycl::handler& cgh) {

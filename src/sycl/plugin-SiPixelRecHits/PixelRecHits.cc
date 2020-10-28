@@ -43,7 +43,8 @@ namespace pixelgpudetails {
     auto nHits = clusters_d.nClusters();
     TrackingRecHit2DCUDA hits_d(nHits, cpeParams, clusters_d.clusModuleStart(), queue);
 
-    int threadsPerBlock = 128;
+    int max_work_group_size = queue.get_device().get_info<sycl::info::device::max_work_group_size>();
+    int threadsPerBlock = std::min(128, max_work_group_size);
     int blocks = digis_d.nModules();  // active modules (with digis)
 
 #ifdef GPU_DEBUG

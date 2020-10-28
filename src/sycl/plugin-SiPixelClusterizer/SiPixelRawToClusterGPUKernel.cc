@@ -551,11 +551,12 @@ namespace pixelgpudetails {
     }
     clusters_d = SiPixelClustersCUDA(gpuClustering::MaxNumModules, queue);
 
+    int max_work_group_size = queue.get_device().get_info<sycl::info::device::max_work_group_size>();
     nModules_Clusters_h = cms::sycltools::make_host_unique<uint32_t[]>(2, queue);
 
     if (wordCounter)  // protect in case of empty event....
     {
-      const int threadsPerBlock = 512;
+      const int threadsPerBlock = std::min(512, max_work_group_size);
       const int blocks = (wordCounter + threadsPerBlock - 1) / threadsPerBlock;  // fill it all
 
       //assert(0 == wordCounter % 2);
@@ -615,7 +616,7 @@ namespace pixelgpudetails {
     {
       // clusterizer ...
       using namespace gpuClustering;
-      int threadsPerBlock = 256;
+      int threadsPerBlock = std::min(256, max_work_group_size);
       int blocks =
           (std::max(int(wordCounter), int(gpuClustering::MaxNumModules)) + threadsPerBlock - 1) / threadsPerBlock;
 
@@ -670,7 +671,7 @@ namespace pixelgpudetails {
       // read the number of modules into a data member, used by getProduct())
       queue.memcpy(&(nModules_Clusters_h[0]), clusters_d.moduleStart(), sizeof(uint32_t));
 
-      threadsPerBlock = 256;
+      threadsPerBlock = std::min(256, max_work_group_size);
       blocks = MaxNumModules;
 #ifdef GPU_DEBUG
       std::cout << "CUDA findClus kernel launch with " << blocks << " blocks of " << threadsPerBlock << " threads\n";
@@ -777,8 +778,9 @@ namespace pixelgpudetails {
         auto clusters_d_c_clusInModule = clusters_d.c_clusInModule();
         auto clusters_d_clusModuleStart = clusters_d.clusModuleStart();
 
-        cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 1024), sycl::range(1, 1, 1024)), [=](sycl::nd_item<3> item) {
-          fillHitsModuleStart(
+        cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, max_work_group_size), sycl::range(1, 1, max_work_group_size)),
+	    [=](sycl::nd_item<3> item) {
+	  fillHitsModuleStart(
               clusters_d_c_clusInModule, clusters_d_clusModuleStart, item,out, ws_acc.get_pointer());
         });
       });

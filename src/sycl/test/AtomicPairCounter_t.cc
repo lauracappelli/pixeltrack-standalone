@@ -55,8 +55,11 @@ int main() {
   n_d = (uint32_t *)sycl::malloc_device(N * sizeof(int), queue);
   m_d = (uint32_t *)sycl::malloc_device(M * sizeof(int), queue);
 
+  int max_work_group_size = queue.get_device().get_info<sycl::info::device::max_work_group_size>();
+  int threads = std::min(512, max_work_group_size);
+
   queue.submit([&](sycl::handler &cgh) {
-    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 2000 * 512), sycl::range(1, 1, 512)),
+    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 2000 * threads), sycl::range(1, 1, threads)),
                      [=](sycl::nd_item<3> item) { update(dc_d, n_d, m_d, 10000, item); });
   });
   queue.submit([&](sycl::handler &cgh) {
@@ -64,7 +67,7 @@ int main() {
                      [=](sycl::nd_item<3> item) { finalize(dc_d, n_d, m_d, 10000); });
   });
   queue.submit([&](sycl::handler &cgh) {
-    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 2000 * 512), sycl::range(1, 1, 512)),
+    cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 2000 * threads), sycl::range(1, 1, threads)),
                      [=](sycl::nd_item<3> item) { verify(dc_d, n_d, m_d, 10000, item); });
   });
 

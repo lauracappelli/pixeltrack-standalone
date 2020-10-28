@@ -27,13 +27,15 @@ namespace testTrackingRecHit2D {
   }
 
   void runKernels(sycl::queue queue, TrackingRecHit2DSOAView* hits) {
+    int max_work_group_size = queue.get_device().get_info<sycl::info::device::max_work_group_size>();
+    int threads = std::min(1024, max_work_group_size);
     assert(hits);
     queue.submit([&](sycl::handler& cgh) {
-      cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 1024), sycl::range(1, 1, 1024)),
+      cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, threads), sycl::range(1, 1, threads)),
                        [=](sycl::nd_item<3> item) { fill(hits, item); });
     });
     queue.submit([&](sycl::handler& cgh) {
-      cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 1024), sycl::range(1, 1, 1024)),
+      cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, threads), sycl::range(1, 1, threads)),
                        [=](sycl::nd_item<3> item) { verify(hits, item); });
     });
     queue.wait_and_throw();

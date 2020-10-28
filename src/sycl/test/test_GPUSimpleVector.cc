@@ -45,11 +45,9 @@ int main() {
   // ... and copy the object to the device.
   queue.memcpy(d_obj_ptr, tmp_obj_ptr, sizeof(GPU::SimpleVector<int>)).wait();
 
+  int max_work_group_size = queue.get_device().get_info<sycl::info::device::max_work_group_size>();
+  int numThreadsPerBlock = std::min(256, max_work_group_size);
   int numBlocks = 5;
-  int numThreadsPerBlock = 256;
-  /*
-  DPCT1049:162: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-  */
   queue.submit([&](sycl::handler &cgh) {
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, numBlocks * numThreadsPerBlock), sycl::range(1, 1, numThreadsPerBlock)),
@@ -60,9 +58,6 @@ int main() {
   queue.memcpy(obj_ptr, d_obj_ptr, sizeof(GPU::SimpleVector<int>)).wait();
 
   //assert(obj_ptr->size() == (numBlocks * numThreadsPerBlock < maxN ? numBlocks * numThreadsPerBlock : maxN));
-  /*
-  DPCT1049:164: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-  */
   queue.submit([&](sycl::handler &cgh) {
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, numBlocks * numThreadsPerBlock), sycl::range(1, 1, numThreadsPerBlock)),
@@ -74,9 +69,6 @@ int main() {
 
   //assert(obj_ptr->size() == 0);
 
-  /*
-  DPCT1049:166: The workgroup size passed to the SYCL kernel may exceed the limit. To get the device limit, query info::device::max_work_group_size. Adjust the workgroup size if needed.
-  */
   queue.submit([&](sycl::handler &cgh) {
     cgh.parallel_for(
         sycl::nd_range(sycl::range(1, 1, numBlocks * numThreadsPerBlock), sycl::range(1, 1, numThreadsPerBlock)),

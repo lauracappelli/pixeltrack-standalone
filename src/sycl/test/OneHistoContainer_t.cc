@@ -129,6 +129,8 @@ void go() {
     //assert(v);
     queue.memcpy(v_d.get(), v, N * sizeof(T)).wait();
     //assert(v_d.get());
+    int max_work_group_size = queue.get_device().get_info<sycl::info::device::max_work_group_size>();
+    int nthreads = std::min(256, max_work_group_size);
     queue.submit([&](sycl::handler &cgh) {
       sycl::stream out(64 * 1024, 80, cgh);
 
@@ -137,7 +139,7 @@ void go() {
 
       auto v_d_get = v_d.get();
 
-      cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, 256), sycl::range(1, 1, 256)), [=](sycl::nd_item<3> item) {
+      cgh.parallel_for(sycl::nd_range(sycl::range(1, 1, nthreads), sycl::range(1, 1, nthreads)), [=](sycl::nd_item<3> item) {
         mykernel<T, NBINS, S, DELTA>(v_d_get, N, item, out, hist_acc.get_pointer(), ws_acc.get_pointer());
       });
     });
