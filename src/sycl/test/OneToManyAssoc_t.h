@@ -150,7 +150,7 @@ int main() {
   auto a_d = cms::sycltools::make_device_unique<Assoc[]>(1, queue);
   auto sa_d = cms::sycltools::make_device_unique<SmallAssoc[]>(1, queue);
 
-  queue.memcpy(v_d.get(), tr.data(), N * sizeof(std::array<uint16_t, 4>)).wait();
+  queue.memcpy(v_d.get(), tr.data(), N * sizeof(std::array<uint16_t, 4>));
 
   cms::sycltools::launchZero(a_d.get(), queue);
 
@@ -183,7 +183,7 @@ int main() {
 
   Assoc la;
 
-  queue.memcpy(&la, a_d.get(), sizeof(Assoc)).wait();
+  queue.memcpy(&la, a_d.get(), sizeof(Assoc));
 
   std::cout << la.size() << std::endl;
   imax = 0;
@@ -206,7 +206,7 @@ int main() {
   AtomicPairCounter dc(0);
 
   dc_d = sycl::malloc_device<AtomicPairCounter>(1, queue);
-  queue.memset(dc_d, 0, sizeof(AtomicPairCounter)).wait();
+  queue.memset(dc_d, 0, sizeof(AtomicPairCounter));
   nBlocks = (N + nThreads - 1) / nThreads;
   queue.submit([&](sycl::handler& cgh) {
     auto v_d_get = v_d.get();
@@ -230,10 +230,10 @@ int main() {
                      [=](sycl::nd_item<3> item) { verifyBulk(a_d_get, dc_d, out); });
   });
 
-  queue.memcpy(&la, a_d.get(), sizeof(Assoc)).wait();
-  queue.memcpy(&dc, dc_d, sizeof(AtomicPairCounter)).wait();
+  queue.memcpy(&la, a_d.get(), sizeof(Assoc));
+  queue.memcpy(&dc, dc_d, sizeof(AtomicPairCounter));
 
-  queue.memset(dc_d, 0, sizeof(AtomicPairCounter)).wait();
+  queue.memset(dc_d, 0, sizeof(AtomicPairCounter));
   queue.submit([&](sycl::handler& cgh) {
     auto v_d_get = v_d.get();
     auto sa_d_get = sa_d.get();

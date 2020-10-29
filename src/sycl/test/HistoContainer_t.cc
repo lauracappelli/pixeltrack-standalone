@@ -5,23 +5,21 @@
 #include <random>
 
 #include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 
-#include "SYCLCore/device_unique_ptr.h"
 #include "SYCLCore/HistoContainer.h"
+#include "SYCLCore/device_unique_ptr.h"
+#include "SYCLCore/initialisation.h"
 
 template <typename T>
-void go() {
+void go(sycl::queue queue) {
   std::mt19937 eng;
   std::uniform_int_distribution<T> rgen(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
-
-  sycl::queue queue = dpct::get_default_queue();
 
   constexpr int N = 12000;
   T v[N];
   auto v_d = cms::sycltools::make_device_unique<T[]>(N, queue);
 
-  queue.memcpy(v_d.get(), v, N * sizeof(T)).wait();
+  queue.memcpy(v_d.get(), v, N * sizeof(T));
 
   constexpr uint32_t nParts = 10;
   constexpr uint32_t partSize = N / nParts;
@@ -57,7 +55,7 @@ void go() {
       offsets[10] = 3297 + offsets[9];
     }
 
-    queue.memcpy(off_d.get(), offsets, 4 * (nParts + 1)).wait();
+    queue.memcpy(off_d.get(), offsets, 4 * (nParts + 1));
 
     for (long long j = 0; j < N; j++)
       v[j] = rgen(eng);
@@ -67,9 +65,9 @@ void go() {
         v[j] = sizeof(T) == 1 ? 22 : 3456;
     }
 
-    queue.memcpy(v_d.get(), v, N * sizeof(T)).wait();
+    queue.memcpy(v_d.get(), v, N * sizeof(T));
     cms::sycltools::fillManyFromVector(h_d.get(), nParts, v_d.get(), off_d.get(), offsets[10], 256, queue);
-    queue.memcpy(&h, h_d.get(), sizeof(Hist)).wait();
+    queue.memcpy(&h, h_d.get(), sizeof(Hist));
     //assert(0 == h.off[0]);
     //assert(offsets[10] == h.size());
 
@@ -145,8 +143,14 @@ void go() {
 }
 
 int main() {
-  go<int16_t>();
-  go<int8_t>();
+  cms::sycltools::enumerateDevices(true);
+  sycl::queue queue = cms::sycltools::getDeviceQueue();
+
+  std::cout << "test <int16_t>" << std::endl;
+  go<int16_t>(queue);
+
+  std::cout << "test <int8_t>" << std::endl;
+  go<int8_t>(queue);
 
   return 0;
 }

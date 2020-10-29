@@ -4,8 +4,9 @@
 
 #include <CL/sycl.hpp>
 
+#include "SYCLCore/initialisation.h"
 #include "SYCLCore/prefixScan.h"
-using namespace cms::sycltools;
+//using namespace cms::sycltools;
 
 template <typename T>
 void testPrefixScan(sycl::nd_item<3> item, uint32_t size, sycl::stream out, T *ws, T *c, T *co, int subgroupSize) {
@@ -63,8 +64,8 @@ void testWarpPrefixScan(sycl::nd_item<3> item, uint32_t size, sycl::stream out, 
   c[i] = 1;
   item.barrier();
 
-  warpPrefixScan(item, c, co, i, subgroupSize);
-  warpPrefixScan(item, c, i, subgroupSize);
+  cms::sycltools::warpPrefixScan(item, c, co, i, subgroupSize);
+  cms::sycltools::warpPrefixScan(item, c, i, subgroupSize);
   item.barrier();
 
   //assert(1 == c[0]);
@@ -122,22 +123,9 @@ void verify(sycl::nd_item<3> item, uint32_t const *v, uint32_t n, sycl::stream o
     out << "  verify" << sycl::endl;
 }
 
-void sycl_exception_handler(sycl::exception_list exceptions) {
-  std::ostringstream msg;
-  msg << "Caught asynchronous SYCL exception:";
-  for (auto const &exc_ptr : exceptions) {
-    try {
-      std::rethrow_exception(exc_ptr);
-    } catch (sycl::exception const &e) {
-      msg << '\n' << e.what();
-    }
-    throw std::runtime_error(msg.str());
-  }
-}
-
 int main() try {
-  sycl::default_selector device_selector;
-  sycl::queue queue(device_selector, sycl_exception_handler, sycl::property::queue::in_order());
+  cms::sycltools::enumerateDevices(true);
+  sycl::queue queue = cms::sycltools::getDeviceQueue();
 
   // query the device for the maximum workgroup size
   auto workgroupSize = queue.get_device().get_info<sycl::info::device::max_work_item_sizes>();
@@ -275,16 +263,16 @@ int main() try {
       cgh.parallel_for(
           sycl::nd_range(sycl::range(1, 1, nblocks * nthreads), sycl::range(1, 1, nthreads)),
           [=](sycl::nd_item<3> item) [[intel::reqd_sub_group_size(16)]] {
-            multiBlockPrefixScan<uint32_t>(item,
-                                           d_in,
-                                           d_out,
-                                           num_items,
-                                           d_pc,
-                                           ws_acc.get_pointer(),
-                                           isLastBlockDone_acc.get_pointer(),
-                                           psum_acc.get_pointer(),
-                                           out,
-                                           subgroupSize);
+            cms::sycltools::multiBlockPrefixScan<uint32_t>(item,
+                                                           d_in,
+                                                           d_out,
+                                                           num_items,
+                                                           d_pc,
+                                                           ws_acc.get_pointer(),
+                                                           isLastBlockDone_acc.get_pointer(),
+                                                           psum_acc.get_pointer(),
+                                                           out,
+                                                           subgroupSize);
           });
     });
     queue.wait_and_throw();

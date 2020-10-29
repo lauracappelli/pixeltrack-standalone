@@ -4,31 +4,22 @@
 #include <CL/sycl.hpp>
 
 #include "SYCLCore/ScopedContext.h"
-#include "chooseDevice.h"
+#include "SYCLCore/initialisation.h"
 
 namespace cms::sycltools {
   namespace impl {
 
-    void sycl_exception_handler(cl::sycl::exception_list exceptions) {
-      std::ostringstream msg;
-      msg << "Caught asynchronous SYCL exception:";
-      for (auto const &exc_ptr : exceptions) {
-        try {
-          std::rethrow_exception(exc_ptr);
-        } catch (cl::sycl::exception const &e) {
-          msg << '\n' << e.what();
-        }
-        throw std::runtime_error(msg.str());
-      }
-    }
-
     ScopedContextBase::ScopedContextBase(edm::StreamID streamID)
-        : stream_(chooseDevice(streamID), sycl_exception_handler, sycl::property::queue::in_order()) {}
+        : stream_(cms::sycltools::getDeviceQueue(streamID)) {
+          std::cerr << "EDM stream " << streamID << " offload to " << stream_.get_device().get_info<cl::sycl::info::device::name>() << std::endl;
+        }
 
     ScopedContextBase::ScopedContextBase(ProductBase const &data)
         : stream_(data.mayReuseStream()
                       ? data.stream()
-                      : sycl::queue{data.device(), sycl_exception_handler, sycl::property::queue::in_order()}) {}
+                      : cms::sycltools::getDeviceQueue(data.device())) {
+          //std::cerr << "EDM stream " << id << " offload to " << stream_.get_device().get_info<cl::sycl::info::device::name>() << std::endl;
+        }
 
     ScopedContextBase::ScopedContextBase(sycl::queue stream) : stream_(std::move(stream)) {}
 

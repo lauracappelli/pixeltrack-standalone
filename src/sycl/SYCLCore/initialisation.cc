@@ -3,9 +3,27 @@
 
 #include <CL/sycl.hpp>
 
-#include "chooseDevice.h"
+#include "initialisation.h"
 
 namespace cms::sycltools {
+
+  namespace {
+
+    void syclExceptionHandler(sycl::exception_list exceptions) {
+      std::ostringstream msg;
+      msg << "Caught asynchronous SYCL exception:";
+      for (auto const &exc_ptr : exceptions) {
+        try {
+          std::rethrow_exception(exc_ptr);
+        } catch (cl::sycl::exception const &e) {
+          msg << '\n' << e.what();
+        }
+        throw std::runtime_error(msg.str());
+      }
+    }
+
+  }
+
   std::vector<sycl::device> const& enumerateDevices(bool verbose) {
     static const std::vector<sycl::device> devices = sycl::device::get_devices(sycl::info::device_type::all);
     if (verbose) {
@@ -27,7 +45,15 @@ namespace cms::sycltools {
     //
     // TODO: improve the "assignment" logic
     auto const& device = devices[id % devices.size()];
-    std::cerr << "EDM stream " << id << " offload to " << device.get_info<cl::sycl::info::device::name>() << std::endl;
     return device;
   }
+
+  sycl::queue getDeviceQueue(unsigned int index /* = 0 */) {
+    return sycl::queue{chooseDevice(index), syclExceptionHandler, sycl::property::queue::in_order()};
+  }
+
+  sycl::queue getDeviceQueue(sycl::device device) {
+    return sycl::queue{device, syclExceptionHandler, sycl::property::queue::in_order()};
+  }
+
 }  // namespace cms::sycltools

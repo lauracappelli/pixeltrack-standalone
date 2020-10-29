@@ -229,12 +229,12 @@ int main(void) {
     size_t size16 = n * sizeof(unsigned short);
     // size_t size8 = n * sizeof(uint8_t);
 
-    queue.memcpy(d_moduleStart.get(), &nModules, sizeof(uint32_t)).wait();
+    queue.memcpy(d_moduleStart.get(), &nModules, sizeof(uint32_t));
 
-    queue.memcpy(d_id.get(), h_id.get(), size16).wait();
-    queue.memcpy(d_x.get(), h_x.get(), size16).wait();
-    queue.memcpy(d_y.get(), h_y.get(), size16).wait();
-    queue.memcpy(d_adc.get(), h_adc.get(), size16).wait();
+    queue.memcpy(d_id.get(), h_id.get(), size16);
+    queue.memcpy(d_x.get(), h_x.get(), size16);
+    queue.memcpy(d_y.get(), h_y.get(), size16);
+    queue.memcpy(d_adc.get(), h_adc.get(), size16);
     // Launch SYCL Kernels
     int max_work_group_size = queue.get_device().get_info<sycl::info::device::max_work_group_size>();
     int threadsPerBlock = std::min(((kkk == 5) ? 512 : ((kkk == 3) ? 128 : 256)), max_work_group_size);
@@ -256,7 +256,7 @@ int main(void) {
 
     std::cout << "SYCL findModules kernel launch with " << blocksPerGrid << " blocks of " << threadsPerBlock
               << " threads\n";
-    queue.memset(d_clusInModule.get(), 0, MaxNumModules * sizeof(uint32_t)).wait();
+    queue.memset(d_clusInModule.get(), 0, MaxNumModules * sizeof(uint32_t));
 
     queue.submit([&](sycl::handler &cgh) {
       sycl::stream out(64 * 1024, 80, cgh);
@@ -305,10 +305,10 @@ int main(void) {
           });
     });
     queue.wait_and_throw();
-    queue.memcpy(&nModules, d_moduleStart.get(), sizeof(uint32_t)).wait();
+    queue.memcpy(&nModules, d_moduleStart.get(), sizeof(uint32_t));
 
     uint32_t nclus[MaxNumModules], moduleId[nModules];
-    queue.memcpy(&nclus, d_clusInModule.get(), MaxNumModules * sizeof(uint32_t)).wait();
+    queue.memcpy(&nclus, d_clusInModule.get(), MaxNumModules * sizeof(uint32_t));
 
     std::cout << "before charge cut found " << std::accumulate(nclus, nclus + MaxNumModules, 0) << " clusters"
               << std::endl;
@@ -361,10 +361,10 @@ int main(void) {
 
     std::cout << "found " << nModules << " Modules active" << std::endl;
 
-    queue.memcpy(h_id.get(), d_id.get(), size16).wait();
-    queue.memcpy(h_clus.get(), d_clus.get(), size32).wait();
-    queue.memcpy(&nclus, d_clusInModule.get(), MaxNumModules * sizeof(uint32_t)).wait();
-    queue.memcpy(&moduleId, d_moduleId.get(), nModules * sizeof(uint32_t)).wait();
+    queue.memcpy(h_id.get(), d_id.get(), size16);
+    queue.memcpy(h_clus.get(), d_clus.get(), size32);
+    queue.memcpy(&nclus, d_clusInModule.get(), MaxNumModules * sizeof(uint32_t));
+    queue.memcpy(&moduleId, d_moduleId.get(), nModules * sizeof(uint32_t));
 
     std::set<unsigned int> clids;
     for (int i = 0; i < n; ++i) {

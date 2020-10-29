@@ -9,8 +9,8 @@
 
 #include <CL/sycl.hpp>
 
-#include "SYCLCore/chooseDevice.h"
 #include "SYCLCore/eventWorkHasCompleted.h"
+#include "SYCLCore/initialisation.h"
 
 namespace cms {
   namespace sycltools {

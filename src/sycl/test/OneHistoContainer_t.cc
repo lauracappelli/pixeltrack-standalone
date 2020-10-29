@@ -5,10 +5,10 @@
 #include <limits>
 
 #include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
 
-#include "SYCLCore/device_unique_ptr.h"
 #include "SYCLCore/HistoContainer.h"
+#include "SYCLCore/device_unique_ptr.h"
+#include "SYCLCore/initialisation.h"
 
 template <typename T, int NBINS, int S, int DELTA>
 void mykernel(T const *__restrict__ v,
@@ -93,11 +93,7 @@ void mykernel(T const *__restrict__ v,
 }
 
 template <typename T, int NBINS = 128, int S = 8 * sizeof(T), int DELTA = 1000>
-void go() {
-  sycl::queue queue = dpct::get_default_queue();
-
-  std::mt19937 eng;
-
+void go(sycl::queue queue) {
   int rmin = std::numeric_limits<T>::min();
   int rmax = std::numeric_limits<T>::max();
   if (NBINS != 128) {
@@ -105,13 +101,14 @@ void go() {
     rmax = NBINS * 2 - 1;
   }
 
+  std::mt19937 eng;
   std::uniform_int_distribution<T> rgen(rmin, rmax);
 
   constexpr int N = 12000;
   T v[N];
 
   auto v_d = cms::sycltools::make_device_unique<T[]>(N, queue);
-  //assert(v_d.get());
+  assert(v_d.get());
 
   using Hist = cms::sycltools::HistoContainer<T, NBINS, N, S, uint16_t>;
   std::cout << "HistoContainer " << Hist::nbits() << ' ' << Hist::nbins() << ' ' << Hist::capacity() << ' '
@@ -125,10 +122,10 @@ void go() {
       for (long long j = N / 2; j < N / 2 + N / 4; j++)
         v[j] = 4;
 
-    //assert(v_d.get());
-    //assert(v);
-    queue.memcpy(v_d.get(), v, N * sizeof(T)).wait();
-    //assert(v_d.get());
+    assert(v_d.get());
+    assert(v);
+    queue.memcpy(v_d.get(), v, N * sizeof(T));
+
     int max_work_group_size = queue.get_device().get_info<sycl::info::device::max_work_group_size>();
     int nthreads = std::min(256, max_work_group_size);
     queue.submit([&](sycl::handler &cgh) {
@@ -143,13 +140,24 @@ void go() {
         mykernel<T, NBINS, S, DELTA>(v_d_get, N, item, out, hist_acc.get_pointer(), ws_acc.get_pointer());
       });
     });
+
+    queue.wait_and_throw();
   }
 }
 
 int main() {
-  go<int16_t>();
-  go<uint8_t, 128, 8, 4>();
-  go<uint16_t, 313 / 2, 9, 4>();
+  cms::sycltools::enumerateDevices(true);
+  sycl::queue queue = cms::sycltools::getDeviceQueue();
 
+  std::cout << "test <int16_t>" << std::endl;
+  go<int16_t>(queue);
+
+  std::cout << "test <uint8_t, 128, 8, 4>" << std::endl;
+  go<uint8_t, 128, 8, 4>(queue);
+
+  std::cout << "test <uint16_t, 313 / 2, 9, 4>" << std::endl;
+  go<uint16_t, 313 / 2, 9, 4>(queue);
+
+  std::cout << "done" << std::endl;
   return 0;
 }

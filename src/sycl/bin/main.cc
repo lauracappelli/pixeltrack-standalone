@@ -10,7 +10,7 @@
 #include <CL/sycl.hpp>
 #include <tbb/task_scheduler_init.h>
 
-#include "SYCLCore/chooseDevice.h"
+#include "SYCLCore/initialisation.h"
 #include "EventProcessor.h"
 
 namespace {

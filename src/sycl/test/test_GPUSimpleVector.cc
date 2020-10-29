@@ -43,7 +43,7 @@ int main() {
 
   d_obj_ptr = sycl::malloc_device<GPU::SimpleVector<int>>(1, queue);
   // ... and copy the object to the device.
-  queue.memcpy(d_obj_ptr, tmp_obj_ptr, sizeof(GPU::SimpleVector<int>)).wait();
+  queue.memcpy(d_obj_ptr, tmp_obj_ptr, sizeof(GPU::SimpleVector<int>));
 
   int max_work_group_size = queue.get_device().get_info<sycl::info::device::max_work_group_size>();
   int numThreadsPerBlock = std::min(256, max_work_group_size);
@@ -55,7 +55,7 @@ int main() {
   });
   queue.wait_and_throw();
 
-  queue.memcpy(obj_ptr, d_obj_ptr, sizeof(GPU::SimpleVector<int>)).wait();
+  queue.memcpy(obj_ptr, d_obj_ptr, sizeof(GPU::SimpleVector<int>));
 
   //assert(obj_ptr->size() == (numBlocks * numThreadsPerBlock < maxN ? numBlocks * numThreadsPerBlock : maxN));
   queue.submit([&](sycl::handler &cgh) {
@@ -65,7 +65,7 @@ int main() {
   });
   queue.wait_and_throw();
 
-  queue.memcpy(obj_ptr, d_obj_ptr, sizeof(GPU::SimpleVector<int>)).wait();
+  queue.memcpy(obj_ptr, d_obj_ptr, sizeof(GPU::SimpleVector<int>));
 
   //assert(obj_ptr->size() == 0);
 
@@ -76,11 +76,11 @@ int main() {
   });
   queue.wait_and_throw();
 
-  queue.memcpy(obj_ptr, d_obj_ptr, sizeof(GPU::SimpleVector<int>)).wait();
+  queue.memcpy(obj_ptr, d_obj_ptr, sizeof(GPU::SimpleVector<int>));
 
   //assert(obj_ptr->size() == (numBlocks * numThreadsPerBlock < maxN ? numBlocks * numThreadsPerBlock : maxN));
 
-  queue.memcpy(data_ptr, d_data_ptr, obj_ptr->size() * sizeof(int)).wait();
+  queue.memcpy(data_ptr, d_data_ptr, obj_ptr->size() * sizeof(int));
   sycl::free(obj_ptr, queue);
   sycl::free(data_ptr, queue);
   sycl::free(tmp_obj_ptr, queue);

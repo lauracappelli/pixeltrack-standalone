@@ -3,6 +3,7 @@
 #include <CL/sycl.hpp>
 #include <dpct/dpct.hpp>
 
+#include "SYCLCore/initialisation.h"
 #include "SYCLCore/AtomicPairCounter.h"
 
 void update(AtomicPairCounter *dc, uint32_t *ind, uint32_t *cont, uint32_t n, sycl::nd_item<3> item) {
@@ -41,11 +42,11 @@ void verify(AtomicPairCounter const *dc, uint32_t const *ind, uint32_t const *co
 
 #include <iostream>
 int main() {
-  sycl::queue queue = dpct::get_default_queue();
+  cms::sycltools::enumerateDevices(true);
+  sycl::queue queue = cms::sycltools::getDeviceQueue();
 
-  AtomicPairCounter *dc_d;
-  dc_d = sycl::malloc_device<AtomicPairCounter>(1, queue);
-  queue.memset(dc_d, 0, sizeof(AtomicPairCounter)).wait();
+  AtomicPairCounter *dc_d = sycl::malloc_device<AtomicPairCounter>(1, queue);
+  queue.memset(dc_d, 0, sizeof(AtomicPairCounter));
 
   std::cout << "size " << sizeof(AtomicPairCounter) << std::endl;
 
@@ -72,7 +73,7 @@ int main() {
   });
 
   AtomicPairCounter dc;
-  queue.memcpy(&dc, dc_d, sizeof(AtomicPairCounter)).wait();
+  queue.memcpy(&dc, dc_d, sizeof(AtomicPairCounter));
 
   std::cout << dc.get().n << ' ' << dc.get().m << std::endl;
 
