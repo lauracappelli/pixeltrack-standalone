@@ -15,10 +15,6 @@
 
 namespace gpuClustering {
 
-#ifdef GPU_DEBUG
-  dpct::device_memory<uint32_t, 0> gMaxHit(0);
-#endif
-
   void countModules(uint16_t const* __restrict__ id,
                     uint32_t* __restrict__ moduleStart,
                     int32_t* __restrict__ clusterId,
@@ -60,7 +56,6 @@ namespace gpuClustering {
                 int numElements,
                 sycl::nd_item<3> item,
                 sycl::stream out,
-                //uint32_t* gMaxHit,
                 int* msize,
                 Hist* hist,
                 typename Hist::Counter* ws,
@@ -79,7 +74,7 @@ namespace gpuClustering {
 #ifdef GPU_DEBUG
     if (thisModuleId % 100 == 1)
       if (item.get_local_id(2) == 0)
-        out << "start clusterizer for module " << thisModuleId " in block %" << item.get_local_id(2) << sycl::endl;
+        out << "start clusterizer for module " << thisModuleId << " in block " << item.get_local_id(2) << sycl::endl;
 #endif
 
     auto first = firstPixel + item.get_local_id(2);
@@ -297,13 +292,8 @@ namespace gpuClustering {
       nClustersInModule[thisModuleId] = *foundClusters;
       moduleId[item.get_group(2)] = thisModuleId;
 #ifdef GPU_DEBUG
-      if (*foundClusters > *gMaxHit) {
-        *gMaxHit = *foundClusters;
-        if (*foundClusters > 8)
-          out << "max hit %d in %d\n";
-      }
-#endif
-#ifdef GPU_DEBUG
+      // FIXME
+      // forget about using atomics in SYCL
       if (thisModuleId % 100 == 1)
         out << "%d clusters in module %d\n";
 #endif

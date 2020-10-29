@@ -600,7 +600,7 @@ namespace pixelgpudetails {
                                includeErrors,
                                debug,
                                item,
-                              out);
+                               out);
             });
       });
 #ifdef GPU_DEBUG
@@ -679,8 +679,6 @@ namespace pixelgpudetails {
       queue.submit([&](sycl::handler &cgh) {
         sycl::stream out(64 * 1024, 80, cgh);
 
-        //auto gMaxHit_ptr = gMaxHit.get_ptr();
-
         sycl::accessor<int, 0, sycl::access_mode::read_write, sycl::target::local> msize_acc(cgh);
         sycl::accessor<Hist, 0, sycl::access_mode::read_write, sycl::target::local> hist_acc(cgh);
         sycl::accessor<typename Hist::Counter, 1, sycl::access_mode::read_write, sycl::target::local> ws_acc(32, cgh);
@@ -710,8 +708,7 @@ namespace pixelgpudetails {
                        digis_d_clus,
                        wordCounter,
                        item,
-                      out,
-                       //gMaxHit_ptr,
+                       out,
                        msize_acc.get_pointer(),
                        hist_acc.get_pointer(),
                        ws_acc.get_pointer(),

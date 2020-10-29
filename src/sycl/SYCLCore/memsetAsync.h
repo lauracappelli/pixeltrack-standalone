@@ -19,7 +19,7 @@ namespace cms {
     }
 
     /**
-   * The type of `value` is `int` because of `cudaMemsetAsync()` takes
+   * The type of `value` is `int` because of `sycl::queue::memset` takes
    * it as an `int`. Note that `cudaMemsetAsync()` sets the value of
    * each **byte** to `value`. This may lead to unexpected results if
    * `sizeof(T) > 1` and `value != 0`.
